@@ -15,6 +15,7 @@ import {
   mapSpaService,
   mapTaxiOption,
   mapExcursion,
+  onNewOrder,
 } from "./store.js";
 import { escapeHtml, FONT_OPTIONS, postcardHTML } from "./util.js";
 import { icon } from "./icons.js";
@@ -56,6 +57,82 @@ function canAccessPage(p) {
   if (p === "staff") return canManageStaff();
   return hasFullAccess();
 }
+
+// ---------- new-order notifications (sound + browser notification) ----------
+const NOTIF_MUTE_KEY = "sbc_admin_muted";
+let notifMuted = localStorage.getItem(NOTIF_MUTE_KEY) === "1";
+let notifPermission = "Notification" in window ? Notification.permission : "unsupported";
+
+function notifBar() {
+  if (notifPermission === "unsupported") return "";
+  let inner;
+  if (notifPermission === "granted") {
+    inner = `<button class="notif-btn" data-action="toggle-mute">${icon(notifMuted ? "volumeX" : "volume2", { size: 14 })} ${notifMuted ? "Ton stumm" : "Benachrichtigungen an"}</button>`;
+  } else if (notifPermission === "denied") {
+    inner = `<span class="notif-btn muted">${icon("bell", { size: 14 })} Im Browser blockiert</span>`;
+  } else {
+    inner = `<button class="notif-btn" data-action="enable-notifications">${icon("bellRing", { size: 14 })} Benachrichtigungen aktivieren</button>`;
+  }
+  return `<div class="admin-notif-bar">${inner}</div>`;
+}
+
+async function requestNotifPermission() {
+  if (!("Notification" in window)) return;
+  notifPermission = await Notification.requestPermission();
+  render();
+}
+
+function toggleNotifMute() {
+  notifMuted = !notifMuted;
+  localStorage.setItem(NOTIF_MUTE_KEY, notifMuted ? "1" : "0");
+  render();
+}
+
+function playChime() {
+  if (notifMuted) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const now = ctx.currentTime;
+    [880, 1320].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      const start = now + i * 0.12;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.2, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.32);
+    });
+  } catch {
+    // Autoplay/audio restrictions before the first user gesture — fail silently,
+    // the browser notification below still gets shown.
+  }
+}
+
+function showOrderNotification(order) {
+  if (notifPermission !== "granted") return;
+  const label = TYPE_LABEL[order.type] || order.type;
+  const notif = new Notification(`Neue Bestellung — Zimmer ${order.room}`, {
+    body: `${label}: ${order.items.join(", ")}`,
+    icon: "favicon-32.png",
+    tag: `order-${order.id}`,
+  });
+  notif.onclick = () => {
+    window.focus();
+    notif.close();
+  };
+}
+
+onNewOrder((order) => {
+  if (!session) return;
+  const allowedTypes = ROLE_ORDER_TYPES[currentRole()];
+  if (allowedTypes && !allowedTypes.includes(order.type)) return;
+  playChime();
+  showOrderNotification(order);
+});
 
 // postcard-compose state
 let pcRoom = "all";
@@ -237,6 +314,7 @@ function sidebar() {
         <div class="brand-mark">${vaseLogo({ size: 34 })}</div>
         <div><div class="admin-brand-name"><span class="brand-kicker" style="color:var(--gold-500);">SWISS</span> <span class="brand-word">Baan Chiang</span></div><div class="admin-brand-sub">Backoffice</div></div>
       </div>
+      ${notifBar()}
       <div class="admin-nav">
         <div class="section-label">Live</div>
         ${items.map((i) => navBtn(i)).join("")}
@@ -876,6 +954,12 @@ root.addEventListener("click", async (e) => {
   if (action === "logout") {
     await supabase.auth.signOut();
     return;
+  }
+  if (action === "enable-notifications") {
+    return requestNotifPermission();
+  }
+  if (action === "toggle-mute") {
+    return toggleNotifMute();
   }
   if (action === "print") {
     window.print();

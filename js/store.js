@@ -26,6 +26,7 @@ let state = {
   postcards: [],
 };
 const listeners = new Set();
+const newOrderListeners = new Set();
 let ready = false;
 
 export function getState() {
@@ -40,6 +41,13 @@ export function subscribe(fn) {
 }
 function notify() {
   listeners.forEach((fn) => fn(state));
+}
+// Separate from subscribe()/notify(): fires only for orders a guest just placed
+// (real INSERT events), not for the initial load or status-change updates —
+// used by the backoffice to trigger a sound/notification exactly once per order.
+export function onNewOrder(fn) {
+  newOrderListeners.add(fn);
+  return () => newOrderListeners.delete(fn);
 }
 
 // ---------- mappers: snake_case DB rows <-> the app's existing camelCase shape ----------
@@ -156,9 +164,18 @@ function subscribeRealtime() {
       state.excursions.sort(byOrder);
       notify();
     })
-    .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (p) => {
-      if (p.eventType === "DELETE") removeLocal(state.orders, p.old.id);
-      else upsertLocal(state.orders, mapOrder(p.new));
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, (p) => {
+      const order = mapOrder(p.new);
+      upsertLocal(state.orders, order);
+      notify();
+      newOrderListeners.forEach((fn) => fn(order));
+    })
+    .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, (p) => {
+      upsertLocal(state.orders, mapOrder(p.new));
+      notify();
+    })
+    .on("postgres_changes", { event: "DELETE", schema: "public", table: "orders" }, (p) => {
+      removeLocal(state.orders, p.old.id);
       notify();
     })
     .on("postgres_changes", { event: "*", schema: "public", table: "postcards" }, (p) => {

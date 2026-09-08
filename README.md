@@ -171,15 +171,14 @@ Mitarbeiterverwaltung) — bestehende Konten sind davon also nicht betroffen.
 - Echtes Backend (Supabase) mit Login-Schutz fürs Backoffice und geräteübergreifender Live-Synchronisation über Realtime
 - Rollen fürs Personal: Rezeption (voll), Küche, Housekeeping, Spa — jede Rolle sieht im Backoffice nur ihre relevanten Bestellungen, durchgesetzt per Row-Level-Security in der Datenbank (nicht nur in der Oberfläche versteckt)
 - Mitarbeiterverwaltung direkt im Backoffice (nur Admin-Rolle): Personal per E-Mail einladen, Rollen zuweisen, Passwort zurücksetzen oder Konto löschen — ohne Supabase-Dashboard, das Personal setzt sein Passwort selbst über den E-Mail-Link
+- Benachrichtigungen bei neuen Bestellungen: Ton (per Web Audio erzeugt, kein Audio-Asset nötig) plus Browser-Notification, solange das Backoffice in einem Tab offen ist — gefiltert nach Rolle (Küche hört nur bei neuen Zimmerservice-Bestellungen usw.). Aktivieren über den Button oben in der Sidebar, je Gerät/Browser einmalig.
 
 ## Nächste Schritte für den echten Einsatz
 
-1. **Push-Benachrichtigungen** ans Personal bei neuen Bestellungen (z. B. Ton
-   oder Browser-Notification im Backoffice).
-2. Professionelle Übersetzungen für neu angelegte Speisekarten-/Spa-Einträge
+1. Professionelle Übersetzungen für neu angelegte Speisekarten-/Spa-Einträge
    (aktuell trägt das Personal alle drei Sprachen selbst ein).
-3. Eigene Domain statt `sbc26.github.io` (z. B. `concierge.swissbaanchiang.com`
+2. Eigene Domain statt `sbc26.github.io` (z. B. `concierge.swissbaanchiang.com`
    per CNAME), sobald gewünscht.
-4. „Leaked Password Protection" in den Supabase-Auth-Einstellungen aktivieren
+3. „Leaked Password Protection" in den Supabase-Auth-Einstellungen aktivieren
    (prüft neue Passwörter gegen bekannte Datenlecks) — besonders sinnvoll,
    jetzt wo Mitarbeitende ihr Passwort selbst wählen.
