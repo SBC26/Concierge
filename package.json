@@ -1,0 +1,12 @@
+{
+  "name": "swiss-baan-chiang-tools",
+  "private": true,
+  "version": "0.0.0",
+  "devDependencies": {
+    "lucide-static": "^1.0.0",
+    "canvas": "^3.2.3"
+  },
+  "allowScripts": {
+    "canvas@3.2.3": true
+  }
+}
