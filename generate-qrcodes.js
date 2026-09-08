@@ -6,7 +6,7 @@ import QRCode from "qrcode";
 import { mkdirSync } from "fs";
 import { DEFAULT_ROOMS } from "./js/data.js";
 
-const BASE_URL = "https://sbc26.github.io/Concierge/index.html";
+const BASE_URL = "https://concierge.swissbaanchiang.com/index.html";
 const OUT_DIR = "./qr";
 
 mkdirSync(OUT_DIR, { recursive: true });

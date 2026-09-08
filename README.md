@@ -7,8 +7,10 @@ passwortgeschützte Backoffice-Ansicht am PC. Beide Seiten teilen sich eine
 echte Datenbank (Supabase) mit Live-Synchronisation über Geräte- und
 Zimmergrenzen hinweg.
 
-- **Live:** https://sbc26.github.io/Concierge/index.html (Gäste) ·
-  https://sbc26.github.io/Concierge/admin.html (Backoffice, Login erforderlich)
+- **Live:** https://concierge.swissbaanchiang.com/index.html (Gäste) ·
+  https://concierge.swissbaanchiang.com/admin.html (Backoffice, Login erforderlich)
+  — eigene Domain über GitHub Pages, siehe `CNAME`-Datei im Repo-Root
+  (DNS bei Hostinger, siehe "Eigene Domain" weiter unten).
 
 ## Struktur
 
@@ -136,10 +138,11 @@ Das läuft über eine kleine Server-Funktion (`supabase/functions/manage-staff`)
 weil Einladen/Löschen/Passwort-Zurücksetzen den geheimen „Service Role Key"
 brauchen, der nie im Browser landen darf; die Funktion prüft selbst, dass nur
 ein Admin-Konto sie aufrufen kann. Damit die Einladungs- und Reset-Mails auf
-die richtige Seite verlinken, müssen `https://sbc26.github.io/Concierge/admin.html`
-und (für lokales Testen) `http://localhost:5173/admin.html` einmalig im
-Supabase-Dashboard unter *Authentication → URL Configuration → Redirect URLs*
-eingetragen sein.
+die richtige Seite verlinken, müssen `https://concierge.swissbaanchiang.com/admin.html`
+und (für lokales Testen) `http://localhost:5173/admin.html` im Supabase-Dashboard
+unter *Authentication → URL Configuration → Redirect URLs* eingetragen sein
+(die alte `https://sbc26.github.io/Concierge/admin.html` kann zusätzlich stehen
+bleiben, schadet nicht).
 
 Alternativ geht es weiterhin auch klassisch über SQL (z. B. um einem
 bestehenden Konto ohne Einladung eine Rolle zu geben):
@@ -172,13 +175,39 @@ Mitarbeiterverwaltung) — bestehende Konten sind davon also nicht betroffen.
 - Rollen fürs Personal: Rezeption (voll), Küche, Housekeeping, Spa — jede Rolle sieht im Backoffice nur ihre relevanten Bestellungen, durchgesetzt per Row-Level-Security in der Datenbank (nicht nur in der Oberfläche versteckt)
 - Mitarbeiterverwaltung direkt im Backoffice (nur Admin-Rolle): Personal per E-Mail einladen, Rollen zuweisen, Passwort zurücksetzen oder Konto löschen — ohne Supabase-Dashboard, das Personal setzt sein Passwort selbst über den E-Mail-Link
 - Benachrichtigungen bei neuen Bestellungen: Ton (per Web Audio erzeugt, kein Audio-Asset nötig) plus Browser-Notification, solange das Backoffice in einem Tab offen ist — gefiltert nach Rolle (Küche hört nur bei neuen Zimmerservice-Bestellungen usw.). Aktivieren über den Button oben in der Sidebar, je Gerät/Browser einmalig.
+- Eigene Domain (`concierge.swissbaanchiang.com`) statt `sbc26.github.io`, siehe "Eigene Domain" unten
+
+### Eigene Domain
+
+Die Seite läuft unter `concierge.swissbaanchiang.com` statt der GitHub-
+Standardadresse. Eingerichtet über eine `CNAME`-Datei im Repo-Root (das ist
+alles, was GitHub Pages dafür auf Code-Seite braucht) plus einem DNS-Eintrag
+beim Registrar — hier Hostinger:
+
+1. Hostinger hPanel → *Domains* → `swissbaanchiang.com` → *DNS/Nameserver* →
+   *DNS-Zone bearbeiten*.
+2. Eintrag hinzufügen: Typ `CNAME`, Name/Host `concierge`, Ziel/Zeigt auf
+   `sbc26.github.io`, TTL Standard.
+3. GitHub-Repo → *Settings → Pages*: Feld „Custom domain" sollte nach dem
+   nächsten Push automatisch `concierge.swissbaanchiang.com` zeigen (kommt aus
+   der `CNAME`-Datei). Sobald GitHub die DNS-Eintragung erkannt hat (Häkchen
+   grün, kann nach dem DNS-Eintrag einige Minuten bis Stunden dauern), dort
+   „Enforce HTTPS" aktivieren.
+4. Im Supabase-Dashboard unter *Authentication → URL Configuration →
+   Redirect URLs* `https://concierge.swissbaanchiang.com/admin.html`
+   eintragen (siehe „Rollen fürs Personal" oben) — sonst funktionieren neue
+   Einladungs-/Passwort-Reset-Links nicht mehr richtig.
+5. QR-Codes fürs Zimmer sind bereits mit der neuen Domain neu erzeugt
+   (`node generate-qrcodes.js`) — falls schon Karten ausgedruckt waren, diese
+   erst ersetzen, sobald Schritt 3 (HTTPS) abgeschlossen ist.
+
+Bis Schritt 3 abgeschlossen ist, bleibt `https://sbc26.github.io/Concierge/`
+parallel erreichbar.
 
 ## Nächste Schritte für den echten Einsatz
 
 1. Professionelle Übersetzungen für neu angelegte Speisekarten-/Spa-Einträge
    (aktuell trägt das Personal alle drei Sprachen selbst ein).
-2. Eigene Domain statt `sbc26.github.io` (z. B. `concierge.swissbaanchiang.com`
-   per CNAME), sobald gewünscht.
-3. „Leaked Password Protection" in den Supabase-Auth-Einstellungen aktivieren
+2. „Leaked Password Protection" in den Supabase-Auth-Einstellungen aktivieren
    (prüft neue Passwörter gegen bekannte Datenlecks) — besonders sinnvoll,
    jetzt wo Mitarbeitende ihr Passwort selbst wählen.

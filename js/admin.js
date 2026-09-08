@@ -820,7 +820,7 @@ function hydrateStaffPage() {
   if (staffList === null && !staffLoading) loadStaff();
 }
 
-const SITE_URL = "https://sbc26.github.io/Concierge";
+const SITE_URL = "https://concierge.swissbaanchiang.com";
 const PAGES = { dashboard: viewDashboard, postcard: viewPostcard, info: viewInfo, dining: viewDining, spa: viewSpa, taxi: viewTaxi, qr: viewQr, staff: viewStaff };
 const TABLE_FOR_COLLECTION = { menu: "menu_items", spaServices: "spa_services", taxiOptions: "taxi_options", excursions: "excursions" };
 const MAPPER_FOR_COLLECTION = { menu: mapMenuItem, spaServices: mapSpaService, taxiOptions: mapTaxiOption, excursions: mapExcursion };
