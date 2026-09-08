@@ -96,10 +96,17 @@ JSONB), `rooms`, `menu_categories`, `menu_items`, `housekeeping_options`,
   nicht nur innerhalb desselben Browsers wie in der ersten Prototyp-Fassung.
 - **Zimmer/Sprache** bleiben bewusst pro Gerät in `localStorage` (kein Login
   für Gäste vorgesehen); ebenso, welche Postkarte ein Gerät schon gesehen hat.
+- **Zimmer-Einrichtung** (`js/roomSetup.js`): Ein Tablet ohne gespeicherte
+  Zimmernummer zeigt statt der App einen Einrichtungsbildschirm. Personal
+  meldet sich dort einmalig mit dem Backoffice-Login an, wählt das Zimmer
+  für dieses Gerät — danach wird die Session sofort wieder abgemeldet, nur
+  die Zimmernummer bleibt gespeichert. Neu zuweisen (z. B. nach Tausch der
+  Tablets zwischen Zimmern): `index.html?setup=1` öffnen und erneut anmelden.
 
 Backoffice-Login anlegen: Supabase-Dashboard → *Authentication → Users* →
 „Add user" (mit „Auto Confirm User"). Es gibt bewusst kein Self-Signup in
-der App — neue Zugänge werden ausschliesslich im Dashboard vergeben.
+der App — neue Zugänge werden ausschliesslich im Dashboard vergeben. Dieser
+Login schützt jetzt sowohl `admin.html` als auch die Zimmer-Einrichtung.
 
 ## Was schon funktioniert
 
@@ -111,22 +118,20 @@ der App — neue Zugänge werden ausschliesslich im Dashboard vergeben.
 - Bestellstatus (Neu / In Bearbeitung / Erledigt) live einsehbar für Gäste
 - Sprachumschaltung Deutsch / English / ไทย
 - Digitale Postkarte vom Personal ans Gästegerät: Im Backoffice unter „Postkarte senden“ verfasst das Personal eine Grussbotschaft (Zimmer oder „Alle Zimmer“ wählbar, Schriftart Elegant/Handschrift/Modern), die auf dem passenden Gäste-Tablet automatisch als Overlay im Swiss-Baan-Chiang-Design (Gold/Teal, Airmail-Streifen, Briefmarke, Poststempel) erscheint — ganz ohne Zutun des Gasts
-- Zimmer-Auswahl zur Demo (in echt würde das Tablet fest einem Zimmer zugeordnet)
+- Feste Zimmer-Zuordnung pro Tablet: Einrichtungsbildschirm (Login-geschützt) statt frei wählbarer Demo-Umschaltung; Neuzuweisung über `index.html?setup=1`
 - Backoffice-Dashboard: alle Bestellungen als Kanban (Neu / In Bearbeitung / Erledigt), Status per Klick ändern
 - Backoffice-Inhaltspflege: WLAN, Öffnungszeiten, Willkommenstext, Hausregeln, Ausflugstipps, Speisekarte, Spa-Angebote, Taxi-Optionen — alles mehrsprachig editierbar, Artikel hinzufügen/entfernen
 - Echtes Backend (Supabase) mit Login-Schutz fürs Backoffice und geräteübergreifender Live-Synchronisation über Realtime
 
 ## Nächste Schritte für den echten Einsatz
 
-1. **Zimmer-Zuordnung**: Tablet fest mit einer Zimmernummer verknüpfen (z. B.
-   über eine Konfigurationsseite bei Ersteinrichtung), statt der Demo-Auswahl.
-2. **QR-Code fürs Smartphone**: pro Zimmer ein QR-Code, der direkt auf
+1. **QR-Code fürs Smartphone**: pro Zimmer ein QR-Code, der direkt auf
    `index.html` mit vorausgefüllter Zimmernummer verlinkt.
-3. **Rollen fürs Personal** (Rezeption, Küche, Housekeeping, Spa sehen nur
+2. **Rollen fürs Personal** (Rezeption, Küche, Housekeeping, Spa sehen nur
    ihre relevanten Bestellungen), statt eines einzelnen geteilten Logins.
-4. **Push-Benachrichtigungen** ans Personal bei neuen Bestellungen (z. B. Ton
+3. **Push-Benachrichtigungen** ans Personal bei neuen Bestellungen (z. B. Ton
    oder Browser-Notification im Backoffice).
-5. Professionelle Übersetzungen für neu angelegte Speisekarten-/Spa-Einträge
+4. Professionelle Übersetzungen für neu angelegte Speisekarten-/Spa-Einträge
    (aktuell trägt das Personal alle drei Sprachen selbst ein).
-6. Eigene Domain statt `sbc26.github.io` (z. B. `concierge.swissbaanchiang.com`
+5. Eigene Domain statt `sbc26.github.io` (z. B. `concierge.swissbaanchiang.com`
    per CNAME), sobald gewünscht.
