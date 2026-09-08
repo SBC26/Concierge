@@ -1,17 +1,26 @@
 # Swiss Baan Chiang — Concierge & Informationssystem
 
-Klick-Prototyp für ein digitales Concierge-System: Gäste sehen Hotelinfos und
+Digitales Concierge-System, live auf GitHub Pages: Gäste sehen Hotelinfos und
 bestellen Leistungen über das Zimmer-Tablet oder ihr eigenes Smartphone.
 Das Personal pflegt Inhalte und sieht eingehende Bestellungen über eine
-Backoffice-Ansicht am PC.
+passwortgeschützte Backoffice-Ansicht am PC. Beide Seiten teilen sich eine
+echte Datenbank (Supabase) mit Live-Synchronisation über Geräte- und
+Zimmergrenzen hinweg.
+
+- **Live:** https://sbc26.github.io/Concierge/index.html (Gäste) ·
+  https://sbc26.github.io/Concierge/admin.html (Backoffice, Login erforderlich)
 
 ## Struktur
 
 - `index.html` + `js/app.js` — Gästeansicht (Tablet im Zimmer / Smartphone per QR-Code)
-- `admin.html` + `js/admin.js` — Backoffice für das Personal (PC an der Rezeption)
-- `js/data.js` — Beispieldaten (Speisekarte, Spa, Taxi, Ausflüge, Hotelinfos) in DE/EN/TH
+- `admin.html` + `js/admin.js` — Backoffice für das Personal (PC an der Rezeption, hinter Login)
+- `js/supabaseClient.js` — Supabase-Verbindung (Projekt-URL + öffentlicher „publishable key")
+- `js/store.js` — gemeinsamer Datenspeicher: lädt beim Start aus Supabase und hält sich per
+  Realtime auf dem aktuellen Stand (siehe "Architektur & Live-Synchronisation")
+- `js/data.js` + `generate-seed.js` — Ausgangsdaten, nur zum (Re-)Erzeugen von `seed.sql`
+  falls die Datenbank einmal neu aufgesetzt werden muss; die laufende App liest nicht mehr
+  aus dieser Datei
 - `js/i18n.js` — Übersetzungen der Bedienoberfläche
-- `js/store.js` — gemeinsamer Datenspeicher (siehe "Wie die Live-Synchronisation funktioniert")
 - `js/icons.js` — generiertes Icon-Set (siehe "Design-System")
 
 ## Design-System
@@ -61,18 +70,36 @@ Am besten beide gleichzeitig in zwei Tabs/Fenstern öffnen, um die
 Live-Synchronisation zu sehen — z. B. Backoffice auf dem Bildschirm der
 Rezeption, Gästeansicht auf einem zweiten Fenster als simuliertes Tablet.
 
-## Wie die Live-Synchronisation funktioniert (Prototyp-Stand)
+**Achtung:** `js/supabaseClient.js` zeigt fest auf das echte Live-Projekt —
+lokal getestete Bestellungen, Postkarten und Inhaltsänderungen landen also
+in derselben Datenbank wie die produktive Seite, nicht in einer isolierten
+Testumgebung. Für risikofreies Ausprobieren im Backoffice ein separates
+Supabase-Projekt anlegen und dessen URL/Key dort eintragen.
 
-Es gibt noch keine echte Datenbank. Stattdessen teilen sich alle geöffneten
-Tabs denselben Browser-Speicher (`localStorage` + `BroadcastChannel`):
-Ändert das Personal im Backoffice einen Text, eine Preisangabe oder den
-Status einer Bestellung, sehen alle offenen Gäste-Tabs das sofort — genau
-das Verhalten, das ein echtes Backend später liefern würde.
+## Architektur & Live-Synchronisation
 
-**Wichtig:** Das funktioniert nur innerhalb desselben Browsers auf demselben
-Gerät. Für den echten Betrieb (Tablets in unterschiedlichen Zimmern, Zugriff
-vom Smartphone der Gäste) braucht es ein echtes Backend mit Datenbank —
-siehe "Nächste Schritte".
+Backend ist ein Supabase-Projekt „Concierge" (Postgres + Realtime + Auth),
+eu-central-1, im Account des Betreibers. Tabellen: `hotel_content` (eine
+Zeile mit WLAN/Öffnungszeiten/Willkommenstext/Hausregeln/Ausflugstipps als
+JSONB), `rooms`, `menu_categories`, `menu_items`, `housekeeping_options`,
+`spa_services`, `taxi_options`, `excursions`, `orders`, `postcards`.
+
+- **Lesen** ist für alle offen (Gäste brauchen keinen Account, um Inhalte zu
+  sehen oder Bestellungen/Postkarten aufzugeben) — abgesichert per Row-Level-
+  Security-Policy `using (true)` auf SELECT (und INSERT bei `orders`).
+- **Schreiben** an Inhalten/Katalogdaten sowie Status-Änderungen und Postkarten-
+  Versand ist nur mit gültigem Supabase-Auth-Login möglich (RLS-Policy
+  `auth.role() = 'authenticated'`). Genau das schützt `admin.html`.
+- **Live-Sync**: `js/store.js` abonniert Postgres-Realtime auf allen Tabellen.
+  Ändert das Personal etwas oder gibt ein Gast eine Bestellung auf, sehen alle
+  offenen Tabs das binnen Millisekunden — jetzt wirklich geräteübergreifend,
+  nicht nur innerhalb desselben Browsers wie in der ersten Prototyp-Fassung.
+- **Zimmer/Sprache** bleiben bewusst pro Gerät in `localStorage` (kein Login
+  für Gäste vorgesehen); ebenso, welche Postkarte ein Gerät schon gesehen hat.
+
+Backoffice-Login anlegen: Supabase-Dashboard → *Authentication → Users* →
+„Add user" (mit „Auto Confirm User"). Es gibt bewusst kein Self-Signup in
+der App — neue Zugänge werden ausschliesslich im Dashboard vergeben.
 
 ## Was schon funktioniert
 
@@ -87,19 +114,19 @@ siehe "Nächste Schritte".
 - Zimmer-Auswahl zur Demo (in echt würde das Tablet fest einem Zimmer zugeordnet)
 - Backoffice-Dashboard: alle Bestellungen als Kanban (Neu / In Bearbeitung / Erledigt), Status per Klick ändern
 - Backoffice-Inhaltspflege: WLAN, Öffnungszeiten, Willkommenstext, Hausregeln, Ausflugstipps, Speisekarte, Spa-Angebote, Taxi-Optionen — alles mehrsprachig editierbar, Artikel hinzufügen/entfernen
+- Echtes Backend (Supabase) mit Login-Schutz fürs Backoffice und geräteübergreifender Live-Synchronisation über Realtime
 
 ## Nächste Schritte für den echten Einsatz
 
-1. **Echtes Backend** (z. B. Supabase): Zimmer, Inhalte und Bestellungen in
-   einer echten Datenbank statt localStorage; Bestellungen landen dann auch
-   geräteübergreifend beim Personal.
-2. **Zimmer-Zuordnung**: Tablet fest mit einer Zimmernummer verknüpfen (z. B.
+1. **Zimmer-Zuordnung**: Tablet fest mit einer Zimmernummer verknüpfen (z. B.
    über eine Konfigurationsseite bei Ersteinrichtung), statt der Demo-Auswahl.
-3. **QR-Code fürs Smartphone**: pro Zimmer ein QR-Code, der direkt auf
+2. **QR-Code fürs Smartphone**: pro Zimmer ein QR-Code, der direkt auf
    `index.html` mit vorausgefüllter Zimmernummer verlinkt.
-4. **Login fürs Personal** im Backoffice, ggf. mit Rollen (Rezeption, Küche,
-   Housekeeping, Spa sehen nur ihre relevanten Bestellungen).
-5. **Push-Benachrichtigungen** ans Personal bei neuen Bestellungen (z. B. Ton
+3. **Rollen fürs Personal** (Rezeption, Küche, Housekeeping, Spa sehen nur
+   ihre relevanten Bestellungen), statt eines einzelnen geteilten Logins.
+4. **Push-Benachrichtigungen** ans Personal bei neuen Bestellungen (z. B. Ton
    oder Browser-Notification im Backoffice).
-6. Professionelle Übersetzungen für neu angelegte Speisekarten-/Spa-Einträge
+5. Professionelle Übersetzungen für neu angelegte Speisekarten-/Spa-Einträge
    (aktuell trägt das Personal alle drei Sprachen selbst ein).
+6. Eigene Domain statt `sbc26.github.io` (z. B. `concierge.swissbaanchiang.com`
+   per CNAME), sobald gewünscht.

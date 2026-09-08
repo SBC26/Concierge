@@ -1,21 +1,37 @@
 import { tf } from "./i18n.js";
-import { getState, subscribe, updateState, setOrderStatus, getRooms, addPostcard } from "./store.js";
+import {
+  getState,
+  subscribe,
+  isReady,
+  initStore,
+  setOrderStatus,
+  getRooms,
+  addPostcard,
+  updateHotelContent,
+  updateRow,
+  insertRow,
+  deleteRow,
+  mapMenuItem,
+  mapSpaService,
+  mapTaxiOption,
+  mapExcursion,
+} from "./store.js";
 import { escapeHtml, FONT_OPTIONS, postcardHTML } from "./util.js";
 import { icon } from "./icons.js";
 import { vaseLogo } from "./logo.js";
+import { supabase } from "./supabaseClient.js";
 
 const root = document.getElementById("admin");
 let page = "dashboard"; // dashboard | postcard | info | dining | spa | taxi
 let flash = false;
+let session = null;
+let authChecked = false;
+let authError = "";
 
 // postcard-compose state
 let pcRoom = "all";
 let pcFont = FONT_OPTIONS[0].id;
 let pcText = "";
-
-function uid(prefix) {
-  return prefix + Math.random().toString(36).slice(2, 8);
-}
 
 function getPath(obj, path) {
   return path.split(".").reduce((o, k) => (o == null ? o : o[k]), obj);
@@ -26,15 +42,55 @@ function setPath(obj, path, value) {
   for (let i = 0; i < keys.length - 1; i++) cur = cur[keys[i]];
   cur[keys[keys.length - 1]] = value;
 }
+function camelToSnake(s) {
+  return s.replace(/[A-Z]/g, (m) => "_" + m.toLowerCase());
+}
 
-function commit(path, value) {
-  updateState((s) => setPath(s, path, value));
+const TABLE_FOR = { menu: "menu_items", spaServices: "spa_services", taxiOptions: "taxi_options", excursions: "excursions" };
+const COL_FOR = { desc: "description" };
+
+// Applies one `data-bind` path change both to the local cache (instant UI feedback)
+// and to the matching Supabase table/column (so it reaches every other device).
+async function commit(path, value) {
+  const s = getState();
+  setPath(s, path, value);
   flash = true;
   render();
   setTimeout(() => {
     flash = false;
     document.querySelectorAll(".save-flash").forEach((el) => el.classList.remove("show"));
   }, 1400);
+
+  const segs = path.split(".");
+  const root0 = segs[0];
+  if (root0 === "content") {
+    const field = segs[1];
+    if (field === "welcome" || field === "rules") {
+      await updateHotelContent({ [field]: s.content[field] });
+    } else {
+      await updateHotelContent({ [camelToSnake(field)]: value });
+    }
+  } else if (root0 === "spaSlots") {
+    await updateHotelContent({ spa_slots: s.spaSlots });
+  } else if (TABLE_FOR[root0]) {
+    const index = Number(segs[1]);
+    const field = segs[2];
+    const row = s[root0][index];
+    const dbCol = COL_FOR[field] || field;
+    const isJsonbLang = segs.length > 3; // e.g. menu.0.name.de -> whole `name` object changed
+    await updateRow(TABLE_FOR[root0], row.id, { [dbCol]: isJsonbLang ? row[field] : value });
+  }
+}
+
+async function commitLocalTips() {
+  const s = getState();
+  flash = true;
+  render();
+  setTimeout(() => {
+    flash = false;
+    document.querySelectorAll(".save-flash").forEach((el) => el.classList.remove("show"));
+  }, 1400);
+  await updateHotelContent({ local_tips: s.content.localTips });
 }
 
 function fmtTime(ts) {
@@ -65,7 +121,13 @@ function sidebar() {
         <div class="section-label">Inhalte pflegen</div>
         ${contentItems.map((i) => navBtn(i)).join("")}
       </div>
-      <div class="admin-footer-note">Änderungen werden sofort auf allen geöffneten Zimmer-Tablets angezeigt.</div>
+      <div class="admin-footer-note">
+        Änderungen werden sofort auf allen geöffneten Zimmer-Tablets angezeigt.
+        <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <span style="opacity:0.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(session?.user?.email || "")}</span>
+          <button data-action="logout" style="background:none;border:none;color:inherit;opacity:0.7;cursor:pointer;text-decoration:underline;padding:0;font-size:11px;">Abmelden</button>
+        </div>
+      </div>
     </div>`;
 }
 function navBtn(i) {
@@ -437,23 +499,67 @@ function viewTaxi() {
 }
 
 const PAGES = { dashboard: viewDashboard, postcard: viewPostcard, info: viewInfo, dining: viewDining, spa: viewSpa, taxi: viewTaxi };
-const BLANK_ITEM = {
-  menu: () => ({ id: uid("m"), category: "mains", price: 0, name: { de: "Neuer Artikel", en: "New item", th: "รายการใหม่" }, desc: { de: "", en: "", th: "" } }),
-  spaServices: () => ({ id: uid("s"), name: { de: "Neue Behandlung", en: "New treatment", th: "ทรีตเมนต์ใหม่" }, duration: 30, price: 0 }),
-  taxiOptions: () => ({ id: uid("t"), name: { de: "Neue Option", en: "New option", th: "ตัวเลือกใหม่" } }),
-  excursions: () => ({ id: uid("e"), price: 0, name: { de: "Neuer Ausflug", en: "New excursion", th: "ทัวร์ใหม่" }, desc: { de: "", en: "", th: "" } }),
+const TABLE_FOR_COLLECTION = { menu: "menu_items", spaServices: "spa_services", taxiOptions: "taxi_options", excursions: "excursions" };
+const MAPPER_FOR_COLLECTION = { menu: mapMenuItem, spaServices: mapSpaService, taxiOptions: mapTaxiOption, excursions: mapExcursion };
+const BLANK_ITEM_PAYLOAD = {
+  menu: (sortOrder) => ({ category: "mains", price: 0, name: { de: "Neuer Artikel", en: "New item", th: "รายการใหม่" }, description: { de: "", en: "", th: "" }, sort_order: sortOrder }),
+  spaServices: (sortOrder) => ({ name: { de: "Neue Behandlung", en: "New treatment", th: "ทรีตเมนต์ใหม่" }, duration: 30, price: 0, sort_order: sortOrder }),
+  taxiOptions: (sortOrder) => ({ name: { de: "Neue Option", en: "New option", th: "ตัวเลือกใหม่" }, sort_order: sortOrder }),
+  excursions: (sortOrder) => ({ price: 0, name: { de: "Neuer Ausflug", en: "New excursion", th: "ทัวร์ใหม่" }, description: { de: "", en: "", th: "" }, sort_order: sortOrder }),
 };
 const BLANK_TIP = () => ({ icon: "mapPin", title: { de: "Neuer Tipp", en: "New tip", th: "เคล็ดลับใหม่" }, desc: { de: "", en: "", th: "" } });
 
+// ---------- auth screens ----------
+function loadingScreen() {
+  return `<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;color:var(--ink-soft);font-size:14px;">Lädt …</div>`;
+}
+function loginScreen() {
+  return `
+    <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;">
+      <form data-action="login-form" style="background:var(--paper-2);border:1px solid var(--line);border-radius:var(--radius);padding:36px;width:340px;box-shadow:var(--shadow);">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:22px;">
+          <div style="color:var(--gold-500);">${vaseLogo({ size: 40 })}</div>
+          <div class="admin-brand-name" style="text-align:center;"><span class="brand-kicker">SWISS</span> <span class="brand-word">Baan Chiang</span></div>
+          <div class="admin-brand-sub" style="color:var(--ink-soft);">Backoffice-Login</div>
+        </div>
+        <div class="plain-field"><label>E-Mail</label><input id="login-email" type="email" autocomplete="username" required /></div>
+        <div class="plain-field"><label>Passwort</label><input id="login-password" type="password" autocomplete="current-password" required /></div>
+        ${authError ? `<p style="color:#a34a3a;font-size:13px;margin:-6px 0 14px;">${escapeHtml(authError)}</p>` : ""}
+        <button class="pill-btn full gold" type="submit">Anmelden</button>
+      </form>
+    </div>`;
+}
+
 function render() {
+  if (!authChecked) return (root.innerHTML = loadingScreen());
+  if (!session) return (root.innerHTML = loginScreen());
+  if (!isReady()) return (root.innerHTML = loadingScreen());
   root.innerHTML = sidebar() + `<div class="admin-main">${PAGES[page]()}</div>`;
   if (page === "postcard") hydratePostcardPage();
 }
 
-root.addEventListener("click", (e) => {
+root.addEventListener("submit", async (e) => {
+  const form = e.target.closest('[data-action="login-form"]');
+  if (!form) return;
+  e.preventDefault();
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+  authError = "";
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    authError = "E-Mail oder Passwort ist falsch.";
+    render();
+  }
+});
+
+root.addEventListener("click", async (e) => {
   const t = e.target.closest("[data-action]");
   if (!t) return;
   const action = t.dataset.action;
+  if (action === "logout") {
+    await supabase.auth.signOut();
+    return;
+  }
   if (action === "nav") {
     page = t.dataset.page;
     return render();
@@ -464,23 +570,29 @@ root.addEventListener("click", (e) => {
   }
   if (action === "add-item") {
     const coll = t.dataset.collection;
-    updateState((s) => s[coll].push(BLANK_ITEM[coll]()));
+    const s = getState();
+    const row = await insertRow(TABLE_FOR_COLLECTION[coll], BLANK_ITEM_PAYLOAD[coll](s[coll].length));
+    if (row) s[coll].push(MAPPER_FOR_COLLECTION[coll](row));
     return render();
   }
   if (action === "remove-item") {
     const coll = t.dataset.collection;
     const idx = Number(t.dataset.index);
-    updateState((s) => s[coll].splice(idx, 1));
-    return render();
+    const s = getState();
+    const row = s[coll][idx];
+    s[coll].splice(idx, 1);
+    render();
+    await deleteRow(TABLE_FOR_COLLECTION[coll], row.id);
+    return;
   }
   if (action === "add-tip") {
-    updateState((s) => s.content.localTips.push(BLANK_TIP()));
-    return render();
+    getState().content.localTips.push(BLANK_TIP());
+    return commitLocalTips();
   }
   if (action === "remove-tip") {
     const idx = Number(t.dataset.index);
-    updateState((s) => s.content.localTips.splice(idx, 1));
-    return render();
+    getState().content.localTips.splice(idx, 1);
+    return commitLocalTips();
   }
   if (action === "pc-set-room") {
     pcRoom = t.dataset.room;
@@ -493,7 +605,7 @@ root.addEventListener("click", (e) => {
   if (action === "pc-send") {
     const trimmed = pcText.trim();
     if (!trimmed) return;
-    addPostcard({ room: pcRoom, text: trimmed, font: pcFont });
+    await addPostcard({ room: pcRoom, text: trimmed, font: pcFont });
     pcText = "";
     flash = true;
     render();
@@ -523,7 +635,18 @@ root.addEventListener("change", (e) => {
   commit(path, value);
 });
 
+// ---------- boot ----------
+supabase.auth.getSession().then(({ data }) => {
+  session = data.session;
+  authChecked = true;
+  render();
+});
+supabase.auth.onAuthStateChange((_event, newSession) => {
+  session = newSession;
+  render();
+});
+initStore();
 subscribe(() => {
-  if (page === "dashboard") render();
+  if (page === "dashboard" || !isReady()) render();
 });
 render();

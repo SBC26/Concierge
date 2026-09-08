@@ -1,5 +1,5 @@
 import { t, tf, LANGS, LANG_LABELS } from "./i18n.js";
-import { getState, subscribe, getRoom, setRoom, getRooms, getLang, setLang, addOrder, ordersForRoom, postcardsForRoom, getDismissedPostcards, dismissPostcard } from "./store.js";
+import { getState, subscribe, isReady, initStore, getRoom, setRoom, getRooms, getLang, setLang, addOrder, ordersForRoom, postcardsForRoom, getDismissedPostcards, dismissPostcard } from "./store.js";
 import { escapeHtml, FONT_MAP } from "./util.js";
 import { icon } from "./icons.js";
 import { vaseLogo } from "./logo.js";
@@ -462,8 +462,16 @@ function roomSheet() {
 // ---------- RENDER ----------
 const views = { home: viewHome, info: viewInfo, dining: viewDining, housekeeping: viewHousekeeping, spa: viewSpa, taxi: viewTaxi, orders: viewOrders };
 
+function loadingScreen() {
+  return `<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;color:var(--ink-soft);font-size:14px;">Lädt …</div>`;
+}
+
 function render() {
   document.documentElement.lang = lang;
+  if (!isReady()) {
+    app.innerHTML = loadingScreen();
+    return;
+  }
   const pending = getPendingPostcard();
   app.innerHTML = pending ? viewIncomingPostcard(pending) : views[route]();
   document.querySelectorAll(".overlay").forEach((el) => el.remove());
@@ -498,7 +506,7 @@ function toast(msg) {
 }
 
 // ---------- EVENTS ----------
-document.addEventListener("click", (e) => {
+document.addEventListener("click", async (e) => {
   const bg = e.target.closest('[data-action="close-sheet-bg"]');
   if (bg && e.target === bg) return closeSheet();
 
@@ -547,7 +555,7 @@ document.addEventListener("click", (e) => {
       const items = entries.map(([id, qty]) => `${qty}× ${tf(s.menu.find((m) => m.id === id)?.name, lang)}`);
       const total = entries.reduce((sum, [id, qty]) => sum + (s.menu.find((m) => m.id === id)?.price || 0) * qty, 0);
       const note = document.getElementById("dining-note")?.value || "";
-      addOrder({ room, type: "dining", items, note, total });
+      await addOrder({ room, type: "dining", items, note, total });
       cart = {};
       closeSheet();
       navigate("orders");
@@ -564,7 +572,7 @@ document.addEventListener("click", (e) => {
       const items = [...selectedHousekeeping].map((id) => tf(s.housekeepingOptions.find((o) => o.id === id)?.name, lang));
       const time = document.getElementById("hk-time")?.value;
       const note = [document.getElementById("hk-note")?.value, time ? `${t2("preferredTime")}: ${time}` : ""].filter(Boolean).join(" · ");
-      addOrder({ room, type: "housekeeping", items, note });
+      await addOrder({ room, type: "housekeeping", items, note });
       selectedHousekeeping = new Set();
       navigate("orders");
       toast(t2("toastSent"));
@@ -582,7 +590,7 @@ document.addEventListener("click", (e) => {
     case "submit-spa": {
       const s = getState();
       const sv = s.spaServices.find((x) => x.id === selectedSpaService);
-      addOrder({ room, type: "spa", items: [tf(sv.name, lang)], note: `${t2("chooseTime")}: ${selectedSpaSlot}`, total: sv.price });
+      await addOrder({ room, type: "spa", items: [tf(sv.name, lang)], note: `${t2("chooseTime")}: ${selectedSpaSlot}`, total: sv.price });
       selectedSpaService = null;
       selectedSpaSlot = null;
       navigate("orders");
@@ -601,7 +609,7 @@ document.addEventListener("click", (e) => {
       const dest = document.getElementById("taxi-dest").value;
       const time = document.getElementById("taxi-time").value;
       const pax = document.getElementById("taxi-pax").value;
-      addOrder({ room, type: "taxi", items: [typeName], note: [dest, time, pax ? `${pax}p` : ""].filter(Boolean).join(" · ") });
+      await addOrder({ room, type: "taxi", items: [typeName], note: [dest, time, pax ? `${pax}p` : ""].filter(Boolean).join(" · ") });
       navigate("orders");
       toast(t2("toastSent"));
       return;
@@ -609,7 +617,7 @@ document.addEventListener("click", (e) => {
     case "book-trip": {
       const s = getState();
       const trip = s.excursions.find((x) => x.id === t.dataset.id);
-      addOrder({ room, type: "excursion", items: [tf(trip.name, lang)], total: trip.price });
+      await addOrder({ room, type: "excursion", items: [tf(trip.name, lang)], total: trip.price });
       navigate("orders");
       toast(t2("toastSent"));
       return;
@@ -627,3 +635,4 @@ function t2(key) {
 
 subscribe(() => render());
 render();
+initStore();
