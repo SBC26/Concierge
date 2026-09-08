@@ -28,6 +28,18 @@ let session = null;
 let authChecked = false;
 let authError = "";
 
+// Staff role lives in the JWT (app_metadata.role, set via SQL/Auth admin API —
+// never editable by the user themselves), mirrored server-side in RLS
+// policies. Unset defaults to "reception" (full access), same as the DB side.
+const ROLE_LABEL = { reception: "Rezeption", kitchen: "Küche", housekeeping: "Housekeeping", spa: "Spa" };
+const ROLE_ORDER_TYPES = { kitchen: ["dining"], housekeeping: ["housekeeping"], spa: ["spa"] };
+function currentRole() {
+  return session?.user?.app_metadata?.role || "reception";
+}
+function isReception() {
+  return currentRole() === "reception";
+}
+
 // postcard-compose state
 let pcRoom = "all";
 let pcFont = FONT_OPTIONS[0].id;
@@ -99,9 +111,10 @@ function fmtTime(ts) {
 }
 
 function sidebar() {
+  const reception = isReception();
   const items = [
     { id: "dashboard", icon: "clipboardList", label: "Bestellungen" },
-    { id: "postcard", icon: "mail", label: "Postkarte senden" },
+    ...(reception ? [{ id: "postcard", icon: "mail", label: "Postkarte senden" }] : []),
   ];
   const contentItems = [
     { id: "info", icon: "conciergeBell", label: "Hotel-Infos" },
@@ -119,16 +132,23 @@ function sidebar() {
       <div class="admin-nav">
         <div class="section-label">Live</div>
         ${items.map((i) => navBtn(i)).join("")}
-        <div class="section-label">Inhalte pflegen</div>
-        ${contentItems.map((i) => navBtn(i)).join("")}
-        <div class="section-label">Gästezugang</div>
-        ${accessItems.map((i) => navBtn(i)).join("")}
+        ${
+          reception
+            ? `<div class="section-label">Inhalte pflegen</div>
+               ${contentItems.map((i) => navBtn(i)).join("")}
+               <div class="section-label">Gästezugang</div>
+               ${accessItems.map((i) => navBtn(i)).join("")}`
+            : ""
+        }
       </div>
       <div class="admin-footer-note">
         Änderungen werden sofort auf allen geöffneten Zimmer-Tablets angezeigt.
-        <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
-          <span style="opacity:0.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(session?.user?.email || "")}</span>
-          <button data-action="logout" style="background:none;border:none;color:inherit;opacity:0.7;cursor:pointer;text-decoration:underline;padding:0;font-size:11px;">Abmelden</button>
+        <div style="margin-top:10px;">
+          <span style="opacity:0.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;">${escapeHtml(session?.user?.email || "")}</span>
+          <div class="row-between" style="margin-top:4px;">
+            <span class="kanban-count" style="background:rgba(191,166,114,0.25);color:var(--gold-500);">${escapeHtml(ROLE_LABEL[currentRole()] || currentRole())}</span>
+            <button data-action="logout" style="background:none;border:none;color:inherit;opacity:0.7;cursor:pointer;text-decoration:underline;padding:0;font-size:11px;">Abmelden</button>
+          </div>
         </div>
       </div>
     </div>`;
@@ -158,10 +178,22 @@ const TYPE_LABEL = { dining: "Zimmerservice", housekeeping: "Housekeeping", spa:
 const TYPE_ICON = { dining: "utensilsCrossed", housekeeping: "brushCleaning", spa: "flower2", taxi: "carTaxiFront", excursion: "mapPin" };
 const NEXT_STATUS = { new: "in_progress", in_progress: "done" };
 
+const ROLE_DASHBOARD_TITLE = {
+  reception: ["Bestellungen &amp; Wünsche", "Alle Anfragen aus den Zimmern in Echtzeit"],
+  kitchen: ["Küchen-Bestellungen", "Zimmerservice-Anfragen aus den Zimmern in Echtzeit"],
+  housekeeping: ["Housekeeping-Wünsche", "Housekeeping-Anfragen aus den Zimmern in Echtzeit"],
+  spa: ["Spa-Termine", "Spa-Anfragen aus den Zimmern in Echtzeit"],
+};
+
 function viewDashboard() {
-  const orders = [...getState().orders].sort((a, b) => b.createdAt - a.createdAt);
+  const role = currentRole();
+  const allowedTypes = ROLE_ORDER_TYPES[role];
+  const orders = [...getState().orders]
+    .filter((o) => !allowedTypes || allowedTypes.includes(o.type))
+    .sort((a, b) => b.createdAt - a.createdAt);
+  const [title, sub] = ROLE_DASHBOARD_TITLE[role] || ROLE_DASHBOARD_TITLE.reception;
   return `
-    ${topHeader("Bestellungen &amp; Wünsche", "Alle Anfragen aus den Zimmern in Echtzeit")}
+    ${topHeader(title, sub)}
     <div class="kanban">
       ${STATUSES.map((st) => {
         const list = orders.filter((o) => o.status === st.id);
@@ -571,6 +603,7 @@ function render() {
   if (!authChecked) return (root.innerHTML = loadingScreen());
   if (!session) return (root.innerHTML = loginScreen());
   if (!isReady()) return (root.innerHTML = loadingScreen());
+  if (!isReception() && page !== "dashboard") page = "dashboard";
   root.innerHTML = sidebar() + `<div class="admin-main">${PAGES[page]()}</div>`;
   if (page === "postcard") hydratePostcardPage();
 }

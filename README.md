@@ -108,6 +108,31 @@ Backoffice-Login anlegen: Supabase-Dashboard → *Authentication → Users* →
 der App — neue Zugänge werden ausschliesslich im Dashboard vergeben. Dieser
 Login schützt jetzt sowohl `admin.html` als auch die Zimmer-Einrichtung.
 
+### Rollen fürs Personal
+
+Jedes Konto hat eine Rolle — **Rezeption** (voller Zugriff, Standard),
+**Küche** (nur Zimmerservice-Bestellungen), **Housekeeping** (nur
+Housekeeping-Wünsche) oder **Spa** (nur Spa-Termine). Die Rolle steckt im
+JWT (`app_metadata.role`) und wird sowohl im Backoffice (Sidebar/Dashboard
+zeigen nur die passenden Einträge) als auch in der Datenbank selbst über
+Row-Level-Security durchgesetzt (`current_staff_role()` in Postgres) — ein
+Küchen-Login kann also auch bei direktem API-Zugriff keine Spa-Termine oder
+Hotelinhalte sehen oder ändern, nicht nur in der Oberfläche versteckt.
+
+Neues Personal-Konto mit Rolle anlegen: zuerst wie oben im Supabase-Dashboard
+das Konto erstellen (E-Mail + Passwort, „Auto Confirm User"), danach die
+Rolle einmalig per SQL setzen (z. B. im Supabase-SQL-Editor):
+
+```sql
+update auth.users
+set raw_app_meta_data = raw_app_meta_data || '{"role": "kitchen"}'::jsonb
+where email = 'kueche@example.com';
+```
+
+Gültige Werte: `reception`, `kitchen`, `housekeeping`, `spa`. Ohne gesetzte
+Rolle gilt automatisch `reception` (voller Zugriff) — bestehende Konten sind
+davon also nicht betroffen.
+
 ## Was schon funktioniert
 
 - Gäste-Startbildschirm mit Zimmerservice, Housekeeping, Spa & Wellness, Taxi & Ausflügen, Hotelinfos, Bestellübersicht
@@ -123,14 +148,13 @@ Login schützt jetzt sowohl `admin.html` als auch die Zimmer-Einrichtung.
 - Backoffice-Dashboard: alle Bestellungen als Kanban (Neu / In Bearbeitung / Erledigt), Status per Klick ändern
 - Backoffice-Inhaltspflege: WLAN, Öffnungszeiten, Willkommenstext, Hausregeln, Ausflugstipps, Speisekarte, Spa-Angebote, Taxi-Optionen — alles mehrsprachig editierbar, Artikel hinzufügen/entfernen
 - Echtes Backend (Supabase) mit Login-Schutz fürs Backoffice und geräteübergreifender Live-Synchronisation über Realtime
+- Rollen fürs Personal: Rezeption (voll), Küche, Housekeeping, Spa — jede Rolle sieht im Backoffice nur ihre relevanten Bestellungen, durchgesetzt per Row-Level-Security in der Datenbank (nicht nur in der Oberfläche versteckt)
 
 ## Nächste Schritte für den echten Einsatz
 
-1. **Rollen fürs Personal** (Rezeption, Küche, Housekeeping, Spa sehen nur
-   ihre relevanten Bestellungen), statt eines einzelnen geteilten Logins.
-2. **Push-Benachrichtigungen** ans Personal bei neuen Bestellungen (z. B. Ton
+1. **Push-Benachrichtigungen** ans Personal bei neuen Bestellungen (z. B. Ton
    oder Browser-Notification im Backoffice).
-3. Professionelle Übersetzungen für neu angelegte Speisekarten-/Spa-Einträge
+2. Professionelle Übersetzungen für neu angelegte Speisekarten-/Spa-Einträge
    (aktuell trägt das Personal alle drei Sprachen selbst ein).
-4. Eigene Domain statt `sbc26.github.io` (z. B. `concierge.swissbaanchiang.com`
+3. Eigene Domain statt `sbc26.github.io` (z. B. `concierge.swissbaanchiang.com`
    per CNAME), sobald gewünscht.
