@@ -19,14 +19,20 @@ import {
 import { escapeHtml, FONT_OPTIONS, postcardHTML } from "./util.js";
 import { icon } from "./icons.js";
 import { vaseLogo } from "./logo.js";
-import { supabase } from "./supabaseClient.js";
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./supabaseClient.js";
 
 const root = document.getElementById("admin");
-let page = "dashboard"; // dashboard | postcard | info | dining | spa | taxi
+let page = "dashboard"; // dashboard | postcard | info | dining | spa | taxi | staff
 let flash = false;
 let session = null;
 let authChecked = false;
 let authError = "";
+// An invite/recovery link lands here with type=invite|recovery in the URL hash;
+// supabase-js signs the user in from that hash automatically, but they still
+// need to set their own password before seeing the normal backoffice.
+let pendingCredentialSetup = /type=(invite|recovery)/.test(location.hash);
+let setPasswordError = "";
+let setPasswordSubmitting = false;
 
 // Staff role lives in the JWT (app_metadata.role, set via SQL/Auth admin API —
 // never editable by the user themselves), mirrored server-side in RLS
@@ -44,6 +50,63 @@ function isReception() {
 let pcRoom = "all";
 let pcFont = FONT_OPTIONS[0].id;
 let pcText = "";
+
+// staff-management state
+const ROLE_OPTIONS = [
+  { id: "reception", label: "Rezeption" },
+  { id: "kitchen", label: "Küche" },
+  { id: "housekeeping", label: "Housekeeping" },
+  { id: "spa", label: "Spa" },
+];
+let staffList = null; // null = not loaded yet
+let staffLoading = false;
+let staffError = "";
+let staffActionError = "";
+let staffInviteEmail = "";
+let staffInviteRole = "kitchen";
+let staffInviting = false;
+let staffJustInvited = "";
+
+async function callStaffFn(action, payload = {}) {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/manage-staff`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+    },
+    body: JSON.stringify({ action, ...payload }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Unbekannter Fehler.");
+  return data;
+}
+
+async function loadStaff() {
+  staffLoading = true;
+  staffError = "";
+  render();
+  try {
+    const data = await callStaffFn("list");
+    staffList = [...data.staff].sort((a, b) => a.email.localeCompare(b.email));
+  } catch (err) {
+    staffError = err.message;
+  }
+  staffLoading = false;
+  render();
+}
+
+async function handleStaffSetRole(userId, role) {
+  staffActionError = "";
+  try {
+    await callStaffFn("set-role", { userId, role });
+    const u = staffList?.find((x) => x.id === userId);
+    if (u) u.role = role;
+  } catch (err) {
+    staffActionError = err.message;
+  }
+  render();
+}
 
 function getPath(obj, path) {
   return path.split(".").reduce((o, k) => (o == null ? o : o[k]), obj);
@@ -122,7 +185,10 @@ function sidebar() {
     { id: "spa", icon: "flower2", label: "Spa-Angebote" },
     { id: "taxi", icon: "carTaxiFront", label: "Taxi & Ausflüge" },
   ];
-  const accessItems = [{ id: "qr", icon: "doorOpen", label: "QR-Codes fürs Zimmer" }];
+  const accessItems = [
+    { id: "qr", icon: "doorOpen", label: "QR-Codes fürs Zimmer" },
+    { id: "staff", icon: "users", label: "Mitarbeiter verwalten" },
+  ];
   return `
     <div class="admin-sidebar">
       <div class="admin-brand">
@@ -566,8 +632,67 @@ function viewQr() {
     </div>`;
 }
 
+// ---------- STAFF MANAGEMENT ----------
+function viewStaff() {
+  return `
+    ${topHeader("Mitarbeiter verwalten", "Zugänge einladen und Rollen zuweisen")}
+    <div class="editor-section">
+      <h3>Neuen Mitarbeiter einladen</h3>
+      <form data-action="staff-invite-form" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <div class="plain-field" style="flex:1;min-width:220px;margin-bottom:0;">
+          <label>E-Mail</label>
+          <input type="email" id="staff-invite-email" required value="${escapeHtml(staffInviteEmail)}" />
+        </div>
+        <div class="plain-field" style="min-width:160px;margin-bottom:0;">
+          <label>Rolle</label>
+          <select id="staff-invite-role">
+            ${ROLE_OPTIONS.map((r) => `<option value="${r.id}" ${r.id === staffInviteRole ? "selected" : ""}>${r.label}</option>`).join("")}
+          </select>
+        </div>
+        <button class="pill-btn gold" type="submit" ${staffInviting ? "disabled" : ""}>${staffInviting ? "Sende Einladung …" : "Einladen"}</button>
+      </form>
+      <p class="rules-hint" style="margin-top:10px;">
+        Der/die Mitarbeiter*in bekommt eine E-Mail mit einem Anmelde-Link und legt dort das
+        eigene Passwort fest — niemand sonst gibt oder sieht dieses Passwort.
+      </p>
+      ${staffActionError ? `<p style="color:#a34a3a;font-size:13px;margin-top:10px;">${escapeHtml(staffActionError)}</p>` : ""}
+      ${staffJustInvited ? `<p style="color:var(--status-done);font-size:13px;margin-top:10px;">${icon("check", { size: 13 })} Einladung an ${escapeHtml(staffJustInvited)} verschickt.</p>` : ""}
+    </div>
+
+    <div class="editor-section">
+      <h3>Bestehende Zugänge</h3>
+      ${
+        staffLoading && !staffList
+          ? `<p class="muted">Lädt …</p>`
+          : staffError
+          ? `<p style="color:#a34a3a;font-size:13px;">${escapeHtml(staffError)}</p>`
+          : (staffList || []).map((u) => staffRow(u)).join("") || `<p class="muted">Keine Konten gefunden.</p>`
+      }
+    </div>`;
+}
+
+function staffRow(u) {
+  const isSelf = u.id === session?.user?.id;
+  return `
+    <div class="item-editor-row" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div>
+        <div style="font-weight:700;color:var(--teal-950);">${escapeHtml(u.email)}${isSelf ? ` <span class="kanban-count">Du</span>` : ""}</div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;">
+          ${u.invited ? "Eingeladen, noch nicht angemeldet" : "Zuletzt angemeldet: " + fmtDate(new Date(u.lastSignInAt).getTime())}
+        </div>
+      </div>
+      <select data-action="staff-set-role" data-user-id="${u.id}" ${isSelf ? "disabled title=\"Du kannst dir nicht selbst die Rolle ändern\"" : ""}>
+        ${ROLE_OPTIONS.map((r) => `<option value="${r.id}" ${r.id === u.role ? "selected" : ""}>${r.label}</option>`).join("")}
+      </select>
+    </div>`;
+}
+
+function hydrateStaffPage() {
+  if (staffList === null && !staffLoading) loadStaff();
+}
+
 const SITE_URL = "https://sbc26.github.io/Concierge";
-const PAGES = { dashboard: viewDashboard, postcard: viewPostcard, info: viewInfo, dining: viewDining, spa: viewSpa, taxi: viewTaxi, qr: viewQr };
+const PAGES = { dashboard: viewDashboard, postcard: viewPostcard, info: viewInfo, dining: viewDining, spa: viewSpa, taxi: viewTaxi, qr: viewQr, staff: viewStaff };
 const TABLE_FOR_COLLECTION = { menu: "menu_items", spaServices: "spa_services", taxiOptions: "taxi_options", excursions: "excursions" };
 const MAPPER_FOR_COLLECTION = { menu: mapMenuItem, spaServices: mapSpaService, taxiOptions: mapTaxiOption, excursions: mapExcursion };
 const BLANK_ITEM_PAYLOAD = {
@@ -599,25 +724,96 @@ function loginScreen() {
     </div>`;
 }
 
+function setPasswordScreen() {
+  return `
+    <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;">
+      <form data-action="set-password-form" style="background:var(--paper-2);border:1px solid var(--line);border-radius:var(--radius);padding:36px;width:340px;box-shadow:var(--shadow);">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:22px;">
+          <div style="color:var(--gold-500);">${vaseLogo({ size: 40 })}</div>
+          <div class="admin-brand-name" style="text-align:center;"><span class="brand-kicker">SWISS</span> <span class="brand-word">Baan Chiang</span></div>
+          <div class="admin-brand-sub" style="color:var(--ink-soft);">Willkommen! Bitte Passwort festlegen</div>
+        </div>
+        <div class="plain-field"><label>Neues Passwort</label><input id="set-pw-1" type="password" autocomplete="new-password" minlength="8" required /></div>
+        <div class="plain-field"><label>Passwort bestätigen</label><input id="set-pw-2" type="password" autocomplete="new-password" minlength="8" required /></div>
+        ${setPasswordError ? `<p style="color:#a34a3a;font-size:13px;margin:-6px 0 14px;">${escapeHtml(setPasswordError)}</p>` : ""}
+        <button class="pill-btn full gold" type="submit" ${setPasswordSubmitting ? "disabled" : ""}>${setPasswordSubmitting ? "Speichert …" : "Passwort speichern & loslegen"}</button>
+      </form>
+    </div>`;
+}
+
 function render() {
   if (!authChecked) return (root.innerHTML = loadingScreen());
   if (!session) return (root.innerHTML = loginScreen());
+  if (pendingCredentialSetup) return (root.innerHTML = setPasswordScreen());
   if (!isReady()) return (root.innerHTML = loadingScreen());
   if (!isReception() && page !== "dashboard") page = "dashboard";
   root.innerHTML = sidebar() + `<div class="admin-main">${PAGES[page]()}</div>`;
   if (page === "postcard") hydratePostcardPage();
+  if (page === "staff") hydrateStaffPage();
 }
 
 root.addEventListener("submit", async (e) => {
-  const form = e.target.closest('[data-action="login-form"]');
-  if (!form) return;
-  e.preventDefault();
-  const email = document.getElementById("login-email").value.trim();
-  const password = document.getElementById("login-password").value;
-  authError = "";
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) {
-    authError = "E-Mail oder Passwort ist falsch.";
+  const loginForm = e.target.closest('[data-action="login-form"]');
+  if (loginForm) {
+    e.preventDefault();
+    const email = document.getElementById("login-email").value.trim();
+    const password = document.getElementById("login-password").value;
+    authError = "";
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      authError = "E-Mail oder Passwort ist falsch.";
+      render();
+    }
+    return;
+  }
+
+  const setPwForm = e.target.closest('[data-action="set-password-form"]');
+  if (setPwForm) {
+    e.preventDefault();
+    const p1 = document.getElementById("set-pw-1").value;
+    const p2 = document.getElementById("set-pw-2").value;
+    setPasswordError = "";
+    if (p1.length < 8) {
+      setPasswordError = "Mindestens 8 Zeichen.";
+      return render();
+    }
+    if (p1 !== p2) {
+      setPasswordError = "Passwörter stimmen nicht überein.";
+      return render();
+    }
+    setPasswordSubmitting = true;
+    render();
+    const { error } = await supabase.auth.updateUser({ password: p1 });
+    setPasswordSubmitting = false;
+    if (error) {
+      setPasswordError = error.message;
+      return render();
+    }
+    pendingCredentialSetup = false;
+    history.replaceState({}, "", location.pathname + location.search);
+    return render();
+  }
+
+  const inviteForm = e.target.closest('[data-action="staff-invite-form"]');
+  if (inviteForm) {
+    e.preventDefault();
+    const email = document.getElementById("staff-invite-email").value.trim();
+    const role = document.getElementById("staff-invite-role").value;
+    staffActionError = "";
+    staffJustInvited = "";
+    staffInviting = true;
+    render();
+    try {
+      const redirectTo = new URL("admin.html", location.href).href;
+      await callStaffFn("invite", { email, role, redirectTo });
+      staffJustInvited = email;
+      staffInviteEmail = "";
+      staffInviteRole = "kitchen";
+      await loadStaff();
+    } catch (err) {
+      staffActionError = err.message;
+    }
+    staffInviting = false;
     render();
   }
 });
@@ -699,6 +895,10 @@ root.addEventListener("input", (e) => {
 });
 
 root.addEventListener("change", (e) => {
+  const roleSelect = e.target.closest('[data-action="staff-set-role"]');
+  if (roleSelect) {
+    return handleStaffSetRole(roleSelect.dataset.userId, roleSelect.value);
+  }
   const el = e.target.closest("[data-bind]");
   if (!el) return;
   const path = el.dataset.bind;

@@ -22,6 +22,8 @@ Zimmergrenzen hinweg.
   aus dieser Datei
 - `js/i18n.js` — Übersetzungen der Bedienoberfläche
 - `js/icons.js` — generiertes Icon-Set (siehe "Design-System")
+- `supabase/functions/manage-staff` — Server-Funktion fürs Einladen neuer
+  Mitarbeiter-Konten und Rollenwechsel (siehe "Rollen fürs Personal")
 
 ## Design-System
 
@@ -119,9 +121,24 @@ Row-Level-Security durchgesetzt (`current_staff_role()` in Postgres) — ein
 Küchen-Login kann also auch bei direktem API-Zugriff keine Spa-Termine oder
 Hotelinhalte sehen oder ändern, nicht nur in der Oberfläche versteckt.
 
-Neues Personal-Konto mit Rolle anlegen: zuerst wie oben im Supabase-Dashboard
-das Konto erstellen (E-Mail + Passwort, „Auto Confirm User"), danach die
-Rolle einmalig per SQL setzen (z. B. im Supabase-SQL-Editor):
+**Neues Personal einladen — direkt im Backoffice** (Rezeption → „Mitarbeiter
+verwalten"): E-Mail-Adresse und Rolle eintragen, „Einladen" klicken. Die
+Person bekommt eine E-Mail mit einem Anmelde-Link und legt dort ihr eigenes
+Passwort fest — niemand sonst gibt oder sieht dieses Passwort. Rollen
+bestehender Konten lassen sich auf derselben Seite jederzeit per Dropdown
+ändern (ausser der eigenen — das verhindert versehentliches Aussperren).
+
+Das läuft über eine kleine Server-Funktion (`supabase/functions/manage-staff`),
+weil das Einladen neuer Konten den geheimen „Service Role Key" braucht, der
+nie im Browser landen darf; die Funktion prüft selbst, dass nur ein
+Rezeption-Konto sie aufrufen kann. Damit die Einladungs-Mail auf die richtige
+Seite verlinkt, müssen `https://sbc26.github.io/Concierge/admin.html` und
+(für lokales Testen) `http://localhost:5173/admin.html` einmalig im
+Supabase-Dashboard unter *Authentication → URL Configuration → Redirect URLs*
+eingetragen sein.
+
+Alternativ geht es weiterhin auch klassisch über SQL (z. B. um einem
+bestehenden Konto ohne Einladung eine Rolle zu geben):
 
 ```sql
 update auth.users
@@ -149,6 +166,7 @@ davon also nicht betroffen.
 - Backoffice-Inhaltspflege: WLAN, Öffnungszeiten, Willkommenstext, Hausregeln, Ausflugstipps, Speisekarte, Spa-Angebote, Taxi-Optionen — alles mehrsprachig editierbar, Artikel hinzufügen/entfernen
 - Echtes Backend (Supabase) mit Login-Schutz fürs Backoffice und geräteübergreifender Live-Synchronisation über Realtime
 - Rollen fürs Personal: Rezeption (voll), Küche, Housekeeping, Spa — jede Rolle sieht im Backoffice nur ihre relevanten Bestellungen, durchgesetzt per Row-Level-Security in der Datenbank (nicht nur in der Oberfläche versteckt)
+- Mitarbeiterverwaltung direkt im Backoffice: Rezeption lädt neues Personal per E-Mail ein und weist Rollen zu, ohne Supabase-Dashboard — das Personal setzt sein Passwort selbst über den Einladungs-Link
 
 ## Nächste Schritte für den echten Einsatz
 
@@ -158,3 +176,6 @@ davon also nicht betroffen.
    (aktuell trägt das Personal alle drei Sprachen selbst ein).
 3. Eigene Domain statt `sbc26.github.io` (z. B. `concierge.swissbaanchiang.com`
    per CNAME), sobald gewünscht.
+4. „Leaked Password Protection" in den Supabase-Auth-Einstellungen aktivieren
+   (prüft neue Passwörter gegen bekannte Datenlecks) — besonders sinnvoll,
+   jetzt wo Mitarbeitende ihr Passwort selbst wählen.
