@@ -112,28 +112,32 @@ Login schützt jetzt sowohl `admin.html` als auch die Zimmer-Einrichtung.
 
 ### Rollen fürs Personal
 
-Jedes Konto hat eine Rolle — **Rezeption** (voller Zugriff, Standard),
-**Küche** (nur Zimmerservice-Bestellungen), **Housekeeping** (nur
-Housekeeping-Wünsche) oder **Spa** (nur Spa-Termine). Die Rolle steckt im
-JWT (`app_metadata.role`) und wird sowohl im Backoffice (Sidebar/Dashboard
-zeigen nur die passenden Einträge) als auch in der Datenbank selbst über
-Row-Level-Security durchgesetzt (`current_staff_role()` in Postgres) — ein
-Küchen-Login kann also auch bei direktem API-Zugriff keine Spa-Termine oder
-Hotelinhalte sehen oder ändern, nicht nur in der Oberfläche versteckt.
+Jedes Konto hat eine Rolle — **Admin** (voller Zugriff plus Mitarbeiter-
+verwaltung), **Rezeption** (voller Zugriff, Standard — aber ohne
+Mitarbeiterverwaltung), **Küche** (nur Zimmerservice-Bestellungen),
+**Housekeeping** (nur Housekeeping-Wünsche) oder **Spa** (nur Spa-Termine).
+Die Rolle steckt im JWT (`app_metadata.role`) und wird sowohl im Backoffice
+(Sidebar/Dashboard zeigen nur die passenden Einträge) als auch in der
+Datenbank selbst über Row-Level-Security durchgesetzt (`current_staff_role()`
+/ `is_full_access_staff()` in Postgres) — ein Küchen-Login kann also auch bei
+direktem API-Zugriff keine Spa-Termine oder Hotelinhalte sehen oder ändern,
+nicht nur in der Oberfläche versteckt.
 
-**Neues Personal einladen — direkt im Backoffice** (Rezeption → „Mitarbeiter
-verwalten"): E-Mail-Adresse und Rolle eintragen, „Einladen" klicken. Die
-Person bekommt eine E-Mail mit einem Anmelde-Link und legt dort ihr eigenes
-Passwort fest — niemand sonst gibt oder sieht dieses Passwort. Rollen
-bestehender Konten lassen sich auf derselben Seite jederzeit per Dropdown
-ändern (ausser der eigenen — das verhindert versehentliches Aussperren).
+**Mitarbeiter verwalten — nur Admin:** neue Konten per E-Mail einladen (Rolle
+direkt mitgeben), Rollen bestehender Konten per Dropdown ändern, Passwort
+eines Kontos zurücksetzen (verschickt eine E-Mail, die Person setzt ihr
+Passwort selbst neu) oder ein Konto löschen. Ein Admin kann sich selbst nicht
+die Admin-Rolle entziehen oder das eigene Konto löschen (verhindert
+versehentliches Aussperren). Neu eingeladenes Personal legt sein Passwort
+immer selbst über den E-Mail-Link fest — niemand sonst gibt oder sieht dieses
+Passwort. Rezeption sieht diese Seite bewusst nicht mehr.
 
 Das läuft über eine kleine Server-Funktion (`supabase/functions/manage-staff`),
-weil das Einladen neuer Konten den geheimen „Service Role Key" braucht, der
-nie im Browser landen darf; die Funktion prüft selbst, dass nur ein
-Rezeption-Konto sie aufrufen kann. Damit die Einladungs-Mail auf die richtige
-Seite verlinkt, müssen `https://sbc26.github.io/Concierge/admin.html` und
-(für lokales Testen) `http://localhost:5173/admin.html` einmalig im
+weil Einladen/Löschen/Passwort-Zurücksetzen den geheimen „Service Role Key"
+brauchen, der nie im Browser landen darf; die Funktion prüft selbst, dass nur
+ein Admin-Konto sie aufrufen kann. Damit die Einladungs- und Reset-Mails auf
+die richtige Seite verlinken, müssen `https://sbc26.github.io/Concierge/admin.html`
+und (für lokales Testen) `http://localhost:5173/admin.html` einmalig im
 Supabase-Dashboard unter *Authentication → URL Configuration → Redirect URLs*
 eingetragen sein.
 
@@ -146,9 +150,9 @@ set raw_app_meta_data = raw_app_meta_data || '{"role": "kitchen"}'::jsonb
 where email = 'kueche@example.com';
 ```
 
-Gültige Werte: `reception`, `kitchen`, `housekeeping`, `spa`. Ohne gesetzte
-Rolle gilt automatisch `reception` (voller Zugriff) — bestehende Konten sind
-davon also nicht betroffen.
+Gültige Werte: `admin`, `reception`, `kitchen`, `housekeeping`, `spa`. Ohne
+gesetzte Rolle gilt automatisch `reception` (voller Zugriff, aber ohne
+Mitarbeiterverwaltung) — bestehende Konten sind davon also nicht betroffen.
 
 ## Was schon funktioniert
 
@@ -166,7 +170,7 @@ davon also nicht betroffen.
 - Backoffice-Inhaltspflege: WLAN, Öffnungszeiten, Willkommenstext, Hausregeln, Ausflugstipps, Speisekarte, Spa-Angebote, Taxi-Optionen — alles mehrsprachig editierbar, Artikel hinzufügen/entfernen
 - Echtes Backend (Supabase) mit Login-Schutz fürs Backoffice und geräteübergreifender Live-Synchronisation über Realtime
 - Rollen fürs Personal: Rezeption (voll), Küche, Housekeeping, Spa — jede Rolle sieht im Backoffice nur ihre relevanten Bestellungen, durchgesetzt per Row-Level-Security in der Datenbank (nicht nur in der Oberfläche versteckt)
-- Mitarbeiterverwaltung direkt im Backoffice: Rezeption lädt neues Personal per E-Mail ein und weist Rollen zu, ohne Supabase-Dashboard — das Personal setzt sein Passwort selbst über den Einladungs-Link
+- Mitarbeiterverwaltung direkt im Backoffice (nur Admin-Rolle): Personal per E-Mail einladen, Rollen zuweisen, Passwort zurücksetzen oder Konto löschen — ohne Supabase-Dashboard, das Personal setzt sein Passwort selbst über den E-Mail-Link
 
 ## Nächste Schritte für den echten Einsatz
 

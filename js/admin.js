@@ -36,14 +36,25 @@ let setPasswordSubmitting = false;
 
 // Staff role lives in the JWT (app_metadata.role, set via SQL/Auth admin API —
 // never editable by the user themselves), mirrored server-side in RLS
-// policies. Unset defaults to "reception" (full access), same as the DB side.
-const ROLE_LABEL = { reception: "Rezeption", kitchen: "Küche", housekeeping: "Housekeeping", spa: "Spa" };
+// policies (public.is_full_access_staff()). Unset defaults to "reception"
+// (full access), same as the DB side. "admin" has the same full access as
+// "reception" plus staff management, which "reception" itself no longer has.
+const ROLE_LABEL = { admin: "Admin", reception: "Rezeption", kitchen: "Küche", housekeeping: "Housekeeping", spa: "Spa" };
 const ROLE_ORDER_TYPES = { kitchen: ["dining"], housekeeping: ["housekeeping"], spa: ["spa"] };
 function currentRole() {
   return session?.user?.app_metadata?.role || "reception";
 }
-function isReception() {
-  return currentRole() === "reception";
+function hasFullAccess() {
+  const r = currentRole();
+  return r === "reception" || r === "admin";
+}
+function canManageStaff() {
+  return currentRole() === "admin";
+}
+function canAccessPage(p) {
+  if (p === "dashboard") return true;
+  if (p === "staff") return canManageStaff();
+  return hasFullAccess();
 }
 
 // postcard-compose state
@@ -53,6 +64,7 @@ let pcText = "";
 
 // staff-management state
 const ROLE_OPTIONS = [
+  { id: "admin", label: "Admin" },
   { id: "reception", label: "Rezeption" },
   { id: "kitchen", label: "Küche" },
   { id: "housekeeping", label: "Housekeeping" },
@@ -62,6 +74,7 @@ let staffList = null; // null = not loaded yet
 let staffLoading = false;
 let staffError = "";
 let staffActionError = "";
+let staffActionMessage = "";
 let staffInviteEmail = "";
 let staffInviteRole = "kitchen";
 let staffInviting = false;
@@ -98,10 +111,38 @@ async function loadStaff() {
 
 async function handleStaffSetRole(userId, role) {
   staffActionError = "";
+  staffActionMessage = "";
   try {
     await callStaffFn("set-role", { userId, role });
     const u = staffList?.find((x) => x.id === userId);
     if (u) u.role = role;
+  } catch (err) {
+    staffActionError = err.message;
+  }
+  render();
+}
+
+async function handleStaffResetPassword(email) {
+  staffActionError = "";
+  staffActionMessage = "";
+  try {
+    const redirectTo = new URL("admin.html", location.href).href;
+    await callStaffFn("reset-password", { email, redirectTo });
+    staffActionMessage = `Passwort-Reset-E-Mail an ${email} verschickt.`;
+  } catch (err) {
+    staffActionError = err.message;
+  }
+  render();
+}
+
+async function handleStaffDelete(userId, email) {
+  if (!confirm(`Konto ${email} wirklich unwiderruflich löschen?`)) return;
+  staffActionError = "";
+  staffActionMessage = "";
+  try {
+    await callStaffFn("remove", { userId });
+    staffList = staffList?.filter((x) => x.id !== userId) ?? null;
+    staffActionMessage = `Konto ${email} gelöscht.`;
   } catch (err) {
     staffActionError = err.message;
   }
@@ -174,10 +215,11 @@ function fmtTime(ts) {
 }
 
 function sidebar() {
-  const reception = isReception();
+  const fullAccess = hasFullAccess();
+  const canStaff = canManageStaff();
   const items = [
     { id: "dashboard", icon: "clipboardList", label: "Bestellungen" },
-    ...(reception ? [{ id: "postcard", icon: "mail", label: "Postkarte senden" }] : []),
+    ...(fullAccess ? [{ id: "postcard", icon: "mail", label: "Postkarte senden" }] : []),
   ];
   const contentItems = [
     { id: "info", icon: "conciergeBell", label: "Hotel-Infos" },
@@ -186,8 +228,8 @@ function sidebar() {
     { id: "taxi", icon: "carTaxiFront", label: "Taxi & Ausflüge" },
   ];
   const accessItems = [
-    { id: "qr", icon: "doorOpen", label: "QR-Codes fürs Zimmer" },
-    { id: "staff", icon: "users", label: "Mitarbeiter verwalten" },
+    ...(fullAccess ? [{ id: "qr", icon: "doorOpen", label: "QR-Codes fürs Zimmer" }] : []),
+    ...(canStaff ? [{ id: "staff", icon: "users", label: "Mitarbeiter verwalten" }] : []),
   ];
   return `
     <div class="admin-sidebar">
@@ -199,10 +241,14 @@ function sidebar() {
         <div class="section-label">Live</div>
         ${items.map((i) => navBtn(i)).join("")}
         ${
-          reception
+          fullAccess
             ? `<div class="section-label">Inhalte pflegen</div>
-               ${contentItems.map((i) => navBtn(i)).join("")}
-               <div class="section-label">Gästezugang</div>
+               ${contentItems.map((i) => navBtn(i)).join("")}`
+            : ""
+        }
+        ${
+          accessItems.length
+            ? `<div class="section-label">Gästezugang &amp; Personal</div>
                ${accessItems.map((i) => navBtn(i)).join("")}`
             : ""
         }
@@ -657,6 +703,7 @@ function viewStaff() {
       </p>
       ${staffActionError ? `<p style="color:#a34a3a;font-size:13px;margin-top:10px;">${escapeHtml(staffActionError)}</p>` : ""}
       ${staffJustInvited ? `<p style="color:var(--status-done);font-size:13px;margin-top:10px;">${icon("check", { size: 13 })} Einladung an ${escapeHtml(staffJustInvited)} verschickt.</p>` : ""}
+      ${staffActionMessage ? `<p style="color:var(--status-done);font-size:13px;margin-top:10px;">${icon("check", { size: 13 })} ${escapeHtml(staffActionMessage)}</p>` : ""}
     </div>
 
     <div class="editor-section">
@@ -674,16 +721,20 @@ function viewStaff() {
 function staffRow(u) {
   const isSelf = u.id === session?.user?.id;
   return `
-    <div class="item-editor-row" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+    <div class="item-editor-row" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
       <div>
         <div style="font-weight:700;color:var(--teal-950);">${escapeHtml(u.email)}${isSelf ? ` <span class="kanban-count">Du</span>` : ""}</div>
         <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;">
           ${u.invited ? "Eingeladen, noch nicht angemeldet" : "Zuletzt angemeldet: " + fmtDate(new Date(u.lastSignInAt).getTime())}
         </div>
       </div>
-      <select data-action="staff-set-role" data-user-id="${u.id}" ${isSelf ? "disabled title=\"Du kannst dir nicht selbst die Rolle ändern\"" : ""}>
-        ${ROLE_OPTIONS.map((r) => `<option value="${r.id}" ${r.id === u.role ? "selected" : ""}>${r.label}</option>`).join("")}
-      </select>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <select data-action="staff-set-role" data-user-id="${u.id}" ${isSelf ? "disabled title=\"Du kannst dir nicht selbst die Rolle ändern\"" : ""}>
+          ${ROLE_OPTIONS.map((r) => `<option value="${r.id}" ${r.id === u.role ? "selected" : ""}>${r.label}</option>`).join("")}
+        </select>
+        <button class="pill-btn sm outline" data-action="staff-reset-pw" data-user-id="${u.id}" data-email="${escapeHtml(u.email)}" title="Passwort zurücksetzen">${icon("keyRound", { size: 13 })}</button>
+        <button class="pill-btn sm outline" data-action="staff-delete" data-user-id="${u.id}" data-email="${escapeHtml(u.email)}" style="color:#a34a3a;" title="Konto löschen" ${isSelf ? "disabled" : ""}>${icon("trash2", { size: 13 })}</button>
+      </div>
     </div>`;
 }
 
@@ -746,7 +797,7 @@ function render() {
   if (!session) return (root.innerHTML = loginScreen());
   if (pendingCredentialSetup) return (root.innerHTML = setPasswordScreen());
   if (!isReady()) return (root.innerHTML = loadingScreen());
-  if (!isReception() && page !== "dashboard") page = "dashboard";
+  if (!canAccessPage(page)) page = "dashboard";
   root.innerHTML = sidebar() + `<div class="admin-main">${PAGES[page]()}</div>`;
   if (page === "postcard") hydratePostcardPage();
   if (page === "staff") hydrateStaffPage();
@@ -837,6 +888,12 @@ root.addEventListener("click", async (e) => {
   if (action === "advance") {
     setOrderStatus(t.dataset.id, t.dataset.next);
     return;
+  }
+  if (action === "staff-reset-pw") {
+    return handleStaffResetPassword(t.dataset.email);
+  }
+  if (action === "staff-delete") {
+    return handleStaffDelete(t.dataset.userId, t.dataset.email);
   }
   if (action === "add-item") {
     const coll = t.dataset.collection;

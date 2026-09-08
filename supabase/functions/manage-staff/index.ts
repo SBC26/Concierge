@@ -1,4 +1,4 @@
-// Lets a "reception"-role staff member manage other staff accounts from the
+// Lets an "admin"-role staff member manage other staff accounts from the
 // backoffice UI (js/admin.js "Mitarbeiter verwalten" page) without anyone —
 // not the reception user, not Claude — ever handling another person's
 // password directly. Invited staff set their own password via the emailed
@@ -12,7 +12,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-const ROLES = new Set(["reception", "kitchen", "housekeeping", "spa"]);
+const ROLES = new Set(["admin", "reception", "kitchen", "housekeeping", "spa"]);
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -40,8 +40,8 @@ Deno.serve(async (req) => {
   if (callerErr || !callerData?.user) return json({ error: "Nicht angemeldet." }, 401);
 
   const callerRole = callerData.user.app_metadata?.role || "reception";
-  if (callerRole !== "reception") {
-    return json({ error: "Nur die Rezeption darf Mitarbeiter verwalten." }, 403);
+  if (callerRole !== "admin") {
+    return json({ error: "Nur Admin-Konten dürfen Mitarbeiter verwalten." }, 403);
   }
 
   let body: Record<string, unknown>;
@@ -87,10 +87,30 @@ Deno.serve(async (req) => {
     const role = String(body.role || "");
     if (!userId) return json({ error: "userId fehlt." }, 400);
     if (!ROLES.has(role)) return json({ error: "Ungültige Rolle." }, 400);
-    if (userId === callerData.user.id && role !== "reception") {
-      return json({ error: "Du kannst dir nicht selbst die Rezeption-Rolle entziehen." }, 400);
+    if (userId === callerData.user.id && role !== "admin") {
+      return json({ error: "Du kannst dir nicht selbst die Admin-Rolle entziehen." }, 400);
     }
     const { error } = await admin.auth.admin.updateUserById(userId, { app_metadata: { role } });
+    if (error) return json({ error: error.message }, 500);
+    return json({ ok: true });
+  }
+
+  if (body.action === "reset-password") {
+    const email = String(body.email || "").trim().toLowerCase();
+    if (!email || !email.includes("@")) return json({ error: "Ungültige E-Mail-Adresse." }, 400);
+    const redirectTo = typeof body.redirectTo === "string" ? body.redirectTo : undefined;
+    const { error } = await admin.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) return json({ error: error.message }, 400);
+    return json({ ok: true });
+  }
+
+  if (body.action === "remove") {
+    const userId = String(body.userId || "");
+    if (!userId) return json({ error: "userId fehlt." }, 400);
+    if (userId === callerData.user.id) {
+      return json({ error: "Du kannst dein eigenes Konto nicht löschen." }, 400);
+    }
+    const { error } = await admin.auth.admin.deleteUser(userId);
     if (error) return json({ error: error.message }, 500);
     return json({ ok: true });
   }

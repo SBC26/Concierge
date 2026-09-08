@@ -6,6 +6,7 @@ const NEEDED = [
   "clipboard-list", "mail", "door-open", "landmark", "mountain", "shopping-bag", "bed", "droplets",
   "moon", "shirt", "sparkles", "scroll-text", "wifi", "clock", "sunrise", "log-in", "log-out",
   "phone-call", "check", "x", "chevron-down", "arrow-left", "arrow-right", "plus", "minus", "map-pin", "users", "send",
+  "key-round", "trash-2",
 ];
 
 const iconsDir = path.join(__dirname, "node_modules", "lucide-static", "icons");
