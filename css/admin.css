@@ -89,3 +89,21 @@ body { background: var(--paper); }
   .kanban { grid-template-columns: 1fr; }
   .editor-grid, .editor-grid.cols-3 { grid-template-columns: 1fr; }
 }
+
+/* QR codes */
+.qr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+.qr-card {
+  background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 16px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.qr-card img { width: 100%; max-width: 180px; border-radius: 8px; }
+.qr-room { font-family: "Italiana", serif; font-size: 18px; color: var(--teal-950); margin-top: 4px; }
+.qr-url { font-size: 11px; color: var(--ink-soft); word-break: break-all; }
+.qr-card .pill-btn { margin-top: 6px; }
+
+@media print {
+  .admin-sidebar, .admin-header .sync-note, .admin-header .save-flash, .no-print { display: none !important; }
+  .admin-main { padding: 0; max-width: none; }
+  .qr-grid { grid-template-columns: repeat(3, 1fr); }
+  .qr-card { break-inside: avoid; border: 1px solid #ccc; }
+}

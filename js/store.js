@@ -200,6 +200,24 @@ export function setRoom(room) {
 export function hasAssignedRoom() {
   return localStorage.getItem(ROOM_KEY) !== null;
 }
+
+// Guests scan a per-room QR code (index.html?room=101) on their own phone and
+// land straight in the app for that room, no staff login involved — but only
+// on a device that has never been assigned a room yet. A tablet that already
+// went through the staff-gated setup screen keeps its room even if someone
+// opens (or forwards) a QR link on it; only index.html?setup=1 can change that.
+export function applyRoomFromUrl() {
+  if (hasAssignedRoom()) return false;
+  const params = new URLSearchParams(location.search);
+  const requested = params.get("room");
+  if (!requested || !state.rooms.includes(requested)) return false;
+  setRoom(requested);
+  params.delete("room");
+  const url = new URL(location.href);
+  url.search = params.toString();
+  history.replaceState({}, "", url);
+  return true;
+}
 export function getRooms() {
   return state.rooms;
 }

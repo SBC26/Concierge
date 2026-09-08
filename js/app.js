@@ -1,5 +1,5 @@
 import { t, tf, LANGS, LANG_LABELS } from "./i18n.js";
-import { getState, subscribe, isReady, initStore, getRoom, getLang, setLang, addOrder, ordersForRoom, postcardsForRoom, getDismissedPostcards, dismissPostcard } from "./store.js";
+import { getState, subscribe, isReady, initStore, getRoom, applyRoomFromUrl, getLang, setLang, addOrder, ordersForRoom, postcardsForRoom, getDismissedPostcards, dismissPostcard } from "./store.js";
 import { escapeHtml, FONT_MAP } from "./util.js";
 import { icon } from "./icons.js";
 import { vaseLogo } from "./logo.js";
@@ -622,5 +622,8 @@ function t2(key) {
 
 subscribe(() => render());
 render();
-initStore();
+initStore().then(() => {
+  if (applyRoomFromUrl()) room = getRoom();
+  render();
+});
 initRoomSetup(render);

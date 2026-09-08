@@ -109,6 +109,7 @@ function sidebar() {
     { id: "spa", icon: "flower2", label: "Spa-Angebote" },
     { id: "taxi", icon: "carTaxiFront", label: "Taxi & Ausflüge" },
   ];
+  const accessItems = [{ id: "qr", icon: "doorOpen", label: "QR-Codes fürs Zimmer" }];
   return `
     <div class="admin-sidebar">
       <div class="admin-brand">
@@ -120,6 +121,8 @@ function sidebar() {
         ${items.map((i) => navBtn(i)).join("")}
         <div class="section-label">Inhalte pflegen</div>
         ${contentItems.map((i) => navBtn(i)).join("")}
+        <div class="section-label">Gästezugang</div>
+        ${accessItems.map((i) => navBtn(i)).join("")}
       </div>
       <div class="admin-footer-note">
         Änderungen werden sofort auf allen geöffneten Zimmer-Tablets angezeigt.
@@ -498,7 +501,41 @@ function viewTaxi() {
     </div>`;
 }
 
-const PAGES = { dashboard: viewDashboard, postcard: viewPostcard, info: viewInfo, dining: viewDining, spa: viewSpa, taxi: viewTaxi };
+// ---------- QR CODES ----------
+function viewQr() {
+  const rooms = getRooms();
+  return `
+    ${topHeader("QR-Codes fürs Zimmer", "Zum Ausdrucken und im Zimmer auslegen (z. B. Tischaufsteller)")}
+    <div class="editor-section">
+      <p class="muted" style="margin-bottom:16px;">
+        Ein Gast, der diesen Code mit dem eigenen Smartphone scannt, landet direkt in der App
+        mit bereits ausgewähltem Zimmer — ganz ohne Anmeldung. Ein bereits eingerichtetes
+        Zimmer-Tablet ändert sich dadurch nicht (das bleibt fest zugewiesen).
+      </p>
+      <button class="pill-btn" data-action="print" style="margin-bottom:20px;">${icon("scrollText", { size: 15 })} Diese Seite drucken</button>
+      <div class="qr-grid">
+        ${rooms
+          .map(
+            (r) => `
+          <div class="qr-card">
+            <img src="qr/zimmer-${escapeHtml(r)}.png" alt="QR-Code Zimmer ${escapeHtml(r)}" />
+            <div class="qr-room">Zimmer ${escapeHtml(r)}</div>
+            <div class="qr-url">${escapeHtml(SITE_URL)}/index.html?room=${escapeHtml(r)}</div>
+            <a class="pill-btn sm outline no-print" href="qr/zimmer-${escapeHtml(r)}.png" download="zimmer-${escapeHtml(r)}-qr.png">Herunterladen</a>
+          </div>`
+          )
+          .join("")}
+      </div>
+      <p class="rules-hint" style="margin-top:18px;">
+        Neues Zimmer hinzugekommen? <code>node generate-qrcodes.js</code> im Projektordner
+        erneut ausführen (Liste dort mit der <code>rooms</code>-Tabelle abgleichen) und die
+        neue PNG-Datei ins Projekt committen/pushen.
+      </p>
+    </div>`;
+}
+
+const SITE_URL = "https://sbc26.github.io/Concierge";
+const PAGES = { dashboard: viewDashboard, postcard: viewPostcard, info: viewInfo, dining: viewDining, spa: viewSpa, taxi: viewTaxi, qr: viewQr };
 const TABLE_FOR_COLLECTION = { menu: "menu_items", spaServices: "spa_services", taxiOptions: "taxi_options", excursions: "excursions" };
 const MAPPER_FOR_COLLECTION = { menu: mapMenuItem, spaServices: mapSpaService, taxiOptions: mapTaxiOption, excursions: mapExcursion };
 const BLANK_ITEM_PAYLOAD = {
@@ -558,6 +595,10 @@ root.addEventListener("click", async (e) => {
   const action = t.dataset.action;
   if (action === "logout") {
     await supabase.auth.signOut();
+    return;
+  }
+  if (action === "print") {
+    window.print();
     return;
   }
   if (action === "nav") {
