@@ -195,6 +195,11 @@ export function getRoom() {
 export function setRoom(room) {
   localStorage.setItem(ROOM_KEY, room);
 }
+// Whether this device has actually been assigned a room (vs. just falling
+// back to the first room in getRoom()) — used to gate the one-time setup screen.
+export function hasAssignedRoom() {
+  return localStorage.getItem(ROOM_KEY) !== null;
+}
 export function getRooms() {
   return state.rooms;
 }

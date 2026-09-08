@@ -1,8 +1,9 @@
 import { t, tf, LANGS, LANG_LABELS } from "./i18n.js";
-import { getState, subscribe, isReady, initStore, getRoom, setRoom, getRooms, getLang, setLang, addOrder, ordersForRoom, postcardsForRoom, getDismissedPostcards, dismissPostcard } from "./store.js";
+import { getState, subscribe, isReady, initStore, getRoom, getLang, setLang, addOrder, ordersForRoom, postcardsForRoom, getDismissedPostcards, dismissPostcard } from "./store.js";
 import { escapeHtml, FONT_MAP } from "./util.js";
 import { icon } from "./icons.js";
 import { vaseLogo } from "./logo.js";
+import { setupActive, renderRoomSetup, initRoomSetup } from "./roomSetup.js";
 
 const app = document.getElementById("app");
 
@@ -61,7 +62,7 @@ function header({ title, sub, showBack = false }) {
             </div>`
       }
       <div class="chip-row">
-        <button class="chip" data-action="open-room-sheet">${icon("doorOpen", { size: 15 })} ${t("room", lang)} ${room}</button>
+        <div class="chip" style="cursor:default;">${icon("doorOpen", { size: 15 })} ${t("room", lang)} ${room}</div>
         ${langSwitcher()}
       </div>
     </div>
@@ -448,17 +449,6 @@ function viewIncomingPostcard(pending) {
     </main>`;
 }
 
-// ---------- ROOM SHEET ----------
-function roomSheet() {
-  return `
-    <div class="sheet-head"><h3>${t("changeRoom", lang)}</h3><button class="icon-btn" data-action="close-sheet">${icon("x", { size: 15 })}</button></div>
-    <div style="display:flex;flex-wrap:wrap;gap:10px;">
-      ${getRooms()
-        .map((r) => `<button class="pill-btn ${r === room ? "" : "outline"}" data-action="set-room" data-room="${r}">${r}</button>`)
-        .join("")}
-    </div>`;
-}
-
 // ---------- RENDER ----------
 const views = { home: viewHome, info: viewInfo, dining: viewDining, housekeeping: viewHousekeeping, spa: viewSpa, taxi: viewTaxi, orders: viewOrders };
 
@@ -470,6 +460,10 @@ function render() {
   document.documentElement.lang = lang;
   if (!isReady()) {
     app.innerHTML = loadingScreen();
+    return;
+  }
+  if (setupActive()) {
+    app.innerHTML = renderRoomSetup();
     return;
   }
   const pending = getPendingPostcard();
@@ -522,13 +516,6 @@ document.addEventListener("click", async (e) => {
     case "set-lang":
       lang = t.dataset.lang;
       setLang(lang);
-      return render();
-    case "open-room-sheet":
-      return openSheet(roomSheet);
-    case "set-room":
-      room = t.dataset.room;
-      setRoom(room);
-      closeSheet();
       return render();
     case "close-sheet":
       return closeSheet();
@@ -636,3 +623,4 @@ function t2(key) {
 subscribe(() => render());
 render();
 initStore();
+initRoomSetup(render);

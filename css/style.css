@@ -517,3 +517,26 @@ main.postcard-takeover {
   .postcard-fs-message { font-size: 20px; }
   .postcard-fs-word { font-size: 19px; }
 }
+
+/* Room setup / re-assignment screen */
+.setup-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--paper);
+}
+.setup-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 36px 30px;
+  box-shadow: var(--shadow);
+}
+.setup-logo { display: flex; justify-content: center; color: var(--gold-500); margin-bottom: 10px; }
+.setup-card h2 { font-size: 21px; color: var(--teal-950); text-align: center; margin-bottom: 8px; }
+.setup-card > p.muted { text-align: center; margin-bottom: 20px; line-height: 1.5; }
+.setup-room-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }

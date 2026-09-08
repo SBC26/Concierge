@@ -11,7 +11,6 @@ export const UI = {
     th: "คอนเซียร์จดิจิทัลของท่าน",
   },
   room: { de: "Zimmer", en: "Room", th: "ห้อง" },
-  changeRoom: { de: "Zimmer wechseln (Demo)", en: "Change room (demo)", th: "เปลี่ยนห้อง (สาธิต)" },
 
   navHome: { de: "Start", en: "Home", th: "หน้าแรก" },
   navInfo: { de: "Hotelinfo", en: "Hotel Info", th: "ข้อมูลโรงแรม" },
