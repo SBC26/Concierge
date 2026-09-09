@@ -63,7 +63,7 @@ function mapContent(row) {
 }
 export const mapMenuItem = (r) => ({ id: r.id, category: r.category, price: Number(r.price), name: r.name, desc: r.description, sortOrder: r.sort_order });
 const mapMenuCategory = (r) => ({ id: r.id, label: r.label, sortOrder: r.sort_order });
-const mapHousekeeping = (r) => ({ id: r.id, icon: r.icon, name: r.name, sortOrder: r.sort_order });
+export const mapHousekeeping = (r) => ({ id: r.id, icon: r.icon, name: r.name, sortOrder: r.sort_order });
 export const mapSpaService = (r) => ({ id: r.id, name: r.name, duration: r.duration, price: Number(r.price), sortOrder: r.sort_order });
 export const mapTaxiOption = (r) => ({ id: r.id, name: r.name, sortOrder: r.sort_order });
 export const mapExcursion = (r) => ({ id: r.id, price: Number(r.price), name: r.name, desc: r.description, sortOrder: r.sort_order });

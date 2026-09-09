@@ -182,7 +182,7 @@ Mitarbeiterverwaltung) — bestehende Konten sind davon also nicht betroffen.
 - Feste Zimmer-Zuordnung pro Tablet: Einrichtungsbildschirm (Login-geschützt) statt frei wählbarer Demo-Umschaltung; Neuzuweisung über `index.html?setup=1`
 - QR-Code pro Zimmer fürs eigene Smartphone der Gäste (`index.html?room=Villa%20Jungfrau`, kein Login nötig) — Backoffice-Seite „QR-Codes fürs Zimmer" zum Herunterladen/Ausdrucken
 - Backoffice-Dashboard: alle Bestellungen als Kanban (Neu / In Bearbeitung / Erledigt), Status per Klick ändern
-- Backoffice-Inhaltspflege: WLAN, Öffnungszeiten, Willkommenstext, Hausregeln, Ausflugstipps, Speisekarte, Spa-Angebote, Taxi-Optionen — alles mehrsprachig editierbar, Artikel hinzufügen/entfernen
+- Backoffice-Inhaltspflege: WLAN, Öffnungszeiten, Willkommenstext, Hausregeln, Ausflugstipps, Speisekarte, Housekeeping-Optionen, Spa-Angebote, Taxi-Optionen — alles mehrsprachig editierbar, Artikel hinzufügen/entfernen
 - Echtes Backend (Supabase) mit Login-Schutz fürs Backoffice und geräteübergreifender Live-Synchronisation über Realtime
 - Rollen fürs Personal: Rezeption (voll), Küche, Housekeeping, Spa — jede Rolle sieht im Backoffice nur ihre relevanten Bestellungen, durchgesetzt per Row-Level-Security in der Datenbank (nicht nur in der Oberfläche versteckt)
 - Mitarbeiterverwaltung direkt im Backoffice (nur Admin-Rolle): Personal per E-Mail einladen, Rollen zuweisen, Passwort zurücksetzen oder Konto löschen — ohne Supabase-Dashboard, das Personal setzt sein Passwort selbst über den E-Mail-Link

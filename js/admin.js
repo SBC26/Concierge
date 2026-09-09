@@ -15,6 +15,7 @@ import {
   mapSpaService,
   mapTaxiOption,
   mapExcursion,
+  mapHousekeeping,
   onNewOrder,
 } from "./store.js";
 import { escapeHtml, FONT_OPTIONS, postcardHTML } from "./util.js";
@@ -23,7 +24,7 @@ import { vaseLogo, wordmarkLogo, fullLockup } from "./logo.js";
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./supabaseClient.js";
 
 const root = document.getElementById("admin");
-let page = "dashboard"; // dashboard | postcard | info | dining | spa | taxi | staff
+let page = "dashboard"; // dashboard | postcard | info | dining | housekeeping | spa | taxi | staff
 let flash = false;
 let session = null;
 let authChecked = false;
@@ -239,7 +240,7 @@ function camelToSnake(s) {
   return s.replace(/[A-Z]/g, (m) => "_" + m.toLowerCase());
 }
 
-const TABLE_FOR = { menu: "menu_items", spaServices: "spa_services", taxiOptions: "taxi_options", excursions: "excursions" };
+const TABLE_FOR = { menu: "menu_items", spaServices: "spa_services", taxiOptions: "taxi_options", excursions: "excursions", housekeepingOptions: "housekeeping_options" };
 const COL_FOR = { desc: "description" };
 
 // Applies one `data-bind` path change both to the local cache (instant UI feedback)
@@ -300,6 +301,7 @@ function sidebar() {
   const contentItems = [
     { id: "info", icon: "conciergeBell", label: "Hotel-Infos" },
     { id: "dining", icon: "utensilsCrossed", label: "Speisekarte" },
+    { id: "housekeeping", icon: "brushCleaning", label: "Housekeeping" },
     { id: "spa", icon: "flower2", label: "Spa-Angebote" },
     { id: "taxi", icon: "carTaxiFront", label: "Taxi & Ausflüge" },
   ];
@@ -522,6 +524,15 @@ const TIP_ICON_CHOICES = [
   { id: "clock", label: "Zeitlich begrenzt" },
 ];
 
+const HOUSEKEEPING_ICON_CHOICES = [
+  { id: "droplets", label: "Bad / Handtücher" },
+  { id: "bed", label: "Bettwäsche" },
+  { id: "brushCleaning", label: "Reinigung" },
+  { id: "moon", label: "Nicht stören" },
+  { id: "shirt", label: "Wäscheservice" },
+  { id: "sparkles", label: "Extras" },
+];
+
 // ---------- INFO EDITOR ----------
 // staff writes German, clicks "Übersetzen" to fill EN/TH via the translate-fields
 // Edge Function (Anthropic API) — result lands directly in the editable fields
@@ -688,6 +699,33 @@ function viewDining() {
         )
         .join("")}
       <button class="add-btn" data-action="add-item" data-collection="menu">+ Neuer Artikel</button>
+    </div>`;
+}
+
+// ---------- HOUSEKEEPING EDITOR ----------
+function viewHousekeeping() {
+  const s = getState();
+  return `
+    ${topHeader("Housekeeping", "Wünsche, die Gäste per Mehrfachauswahl anfragen können")}
+    <div class="editor-section">
+      ${s.housekeepingOptions
+        .map(
+          (h, i) => `
+        <div class="item-editor-row">
+          <div class="row-top">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="color:var(--copper);display:flex;">${icon(h.icon, { size: 18 })}</span>
+              <select data-bind="housekeepingOptions.${i}.icon" style="border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:12px;">
+                ${HOUSEKEEPING_ICON_CHOICES.map((c) => `<option value="${c.id}" ${c.id === h.icon ? "selected" : ""}>${c.label}</option>`).join("")}
+              </select>
+            </div>
+            <button class="remove-btn" data-action="remove-item" data-collection="housekeepingOptions" data-index="${i}">${icon("x", { size: 13 })}</button>
+          </div>
+          ${triLang("Name", `housekeepingOptions.${i}.name`)}
+        </div>`
+        )
+        .join("")}
+      <button class="add-btn" data-action="add-item" data-collection="housekeepingOptions">+ Option hinzufügen</button>
     </div>`;
 }
 
@@ -861,14 +899,15 @@ function hydrateStaffPage() {
 }
 
 const SITE_URL = "https://concierge.swissbaanchiang.com";
-const PAGES = { dashboard: viewDashboard, postcard: viewPostcard, info: viewInfo, dining: viewDining, spa: viewSpa, taxi: viewTaxi, qr: viewQr, staff: viewStaff };
-const TABLE_FOR_COLLECTION = { menu: "menu_items", spaServices: "spa_services", taxiOptions: "taxi_options", excursions: "excursions" };
-const MAPPER_FOR_COLLECTION = { menu: mapMenuItem, spaServices: mapSpaService, taxiOptions: mapTaxiOption, excursions: mapExcursion };
+const PAGES = { dashboard: viewDashboard, postcard: viewPostcard, info: viewInfo, dining: viewDining, housekeeping: viewHousekeeping, spa: viewSpa, taxi: viewTaxi, qr: viewQr, staff: viewStaff };
+const TABLE_FOR_COLLECTION = { menu: "menu_items", spaServices: "spa_services", taxiOptions: "taxi_options", excursions: "excursions", housekeepingOptions: "housekeeping_options" };
+const MAPPER_FOR_COLLECTION = { menu: mapMenuItem, spaServices: mapSpaService, taxiOptions: mapTaxiOption, excursions: mapExcursion, housekeepingOptions: mapHousekeeping };
 const BLANK_ITEM_PAYLOAD = {
   menu: (sortOrder) => ({ category: "mains", price: 0, name: { de: "Neuer Artikel", en: "New item", th: "รายการใหม่" }, description: { de: "", en: "", th: "" }, sort_order: sortOrder }),
   spaServices: (sortOrder) => ({ name: { de: "Neue Behandlung", en: "New treatment", th: "ทรีตเมนต์ใหม่" }, duration: 30, price: 0, sort_order: sortOrder }),
   taxiOptions: (sortOrder) => ({ name: { de: "Neue Option", en: "New option", th: "ตัวเลือกใหม่" }, sort_order: sortOrder }),
   excursions: (sortOrder) => ({ price: 0, name: { de: "Neuer Ausflug", en: "New excursion", th: "ทัวร์ใหม่" }, description: { de: "", en: "", th: "" }, sort_order: sortOrder }),
+  housekeepingOptions: (sortOrder) => ({ icon: "sparkles", name: { de: "Neue Option", en: "New option", th: "ตัวเลือกใหม่" }, sort_order: sortOrder }),
 };
 const BLANK_TIP = () => ({ icon: "mapPin", title: { de: "Neuer Tipp", en: "New tip", th: "เคล็ดลับใหม่" }, desc: { de: "", en: "", th: "" } });
 
