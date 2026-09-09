@@ -208,6 +208,9 @@ bleibt zusätzlich erreichbar, falls irgendwo noch die alte Adresse verlinkt ist
 
 1. Professionelle Übersetzungen für neu angelegte Speisekarten-/Spa-Einträge
    (aktuell trägt das Personal alle drei Sprachen selbst ein).
-2. „Leaked Password Protection" in den Supabase-Auth-Einstellungen aktivieren
-   (prüft neue Passwörter gegen bekannte Datenlecks) — besonders sinnvoll,
-   jetzt wo Mitarbeitende ihr Passwort selbst wählen.
+
+**Bewusst zurückgestellt:** „Leaked Password Protection" in Supabase Auth
+(prüft neue Passwörter gegen bekannte Datenlecks) — erst ab dem Pro-Plan
+verfügbar, das Projekt läuft auf dem Free-Plan. Aufwand/Kosten stehen bei der
+aktuellen Grösse (wenige, persönlich eingeladene Mitarbeiter-Konten) in keinem
+Verhältnis zum Risiko — bewusste Entscheidung, kein offener Punkt.
