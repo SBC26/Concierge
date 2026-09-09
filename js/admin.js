@@ -257,12 +257,11 @@ async function commit(path, value) {
   const segs = path.split(".");
   const root0 = segs[0];
   if (root0 === "content") {
+    // Always send the whole field (s.content[field]), not the raw leaf `value" —
+    // fields like localTips are nested arrays, and persisting just the changed
+    // leaf string would overwrite the entire column with that one string.
     const field = segs[1];
-    if (field === "welcome" || field === "rules") {
-      await updateHotelContent({ [field]: s.content[field] });
-    } else {
-      await updateHotelContent({ [camelToSnake(field)]: value });
-    }
+    await updateHotelContent({ [camelToSnake(field)]: s.content[field] });
   } else if (root0 === "spaSlots") {
     await updateHotelContent({ spa_slots: s.spaSlots });
   } else if (TABLE_FOR[root0]) {
@@ -524,12 +523,61 @@ const TIP_ICON_CHOICES = [
 ];
 
 // ---------- INFO EDITOR ----------
+// staff writes German, clicks "Übersetzen" to fill EN/TH via the translate-fields
+// Edge Function (Anthropic API) — result lands directly in the editable fields
+// below, so staff sees and can still correct it before it's ever committed, same
+// as if they'd typed it themselves. Never applied silently in the background.
+let translatingPath = null;
+let translateErrorPath = null;
+let translateError = "";
+
+async function callTranslateFn(text, multiline) {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/translate-fields`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+    },
+    body: JSON.stringify({ text, multiline }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Übersetzung fehlgeschlagen.");
+  return data;
+}
+
+async function handleTranslate(basePath, multiline) {
+  const deEl = document.querySelector(`[data-bind="${basePath}.de"]`);
+  const text = (deEl?.value || "").trim();
+  if (!text) return;
+  translateError = "";
+  translateErrorPath = null;
+  translatingPath = basePath;
+  render();
+  try {
+    const data = await callTranslateFn(text, multiline);
+    await commit(`${basePath}.en`, data.en || "");
+    await commit(`${basePath}.th`, data.th || "");
+  } catch (err) {
+    translateError = err.message;
+    translateErrorPath = basePath;
+  }
+  translatingPath = null;
+  render();
+}
+
 function triLang(baseLabel, basePath, multiline = false) {
   const s = getState();
   const langs = [["de", "DE"], ["en", "EN"], ["th", "TH"]];
+  const busy = translatingPath === basePath;
   return `
     <div class="plain-field">
-      <label>${baseLabel}</label>
+      <div class="ml-label-row">
+        <label>${baseLabel}</label>
+        <button type="button" class="translate-btn" data-action="translate" data-base-path="${basePath}" data-multiline="${multiline}" ${busy ? "disabled" : ""}>
+          ${icon("languages", { size: 12 })} ${busy ? "Übersetzt …" : "Übersetzen"}
+        </button>
+      </div>
       <div class="editor-grid cols-3">
         ${langs
           .map(([code, tag]) => {
@@ -541,6 +589,7 @@ function triLang(baseLabel, basePath, multiline = false) {
           })
           .join("")}
       </div>
+      ${translateErrorPath === basePath && translateError ? `<p style="color:#a34a3a;font-size:12px;margin-top:6px;">${escapeHtml(translateError)}</p>` : ""}
     </div>`;
 }
 
@@ -604,12 +653,8 @@ function viewInfo() {
             </div>
             <button class="remove-btn" data-action="remove-tip" data-index="${i}">${icon("x", { size: 13 })}</button>
           </div>
-          <div class="editor-grid cols-3" style="margin-bottom:8px;">
-            ${["de", "en", "th"].map((code) => `<div class="ml-field"><span class="lang-tag">Titel ${code.toUpperCase()}</span><input value="${escapeAttr(tip.title[code] || "")}" data-bind="content.localTips.${i}.title.${code}" /></div>`).join("")}
-          </div>
-          <div class="editor-grid cols-3">
-            ${["de", "en", "th"].map((code) => `<div class="ml-field"><span class="lang-tag">Text ${code.toUpperCase()}</span><input value="${escapeAttr(tip.desc[code] || "")}" data-bind="content.localTips.${i}.desc.${code}" /></div>`).join("")}
-          </div>
+          ${triLang("Titel", `content.localTips.${i}.title`)}
+          ${triLang("Text", `content.localTips.${i}.desc`)}
         </div>`
         )
         .join("")}
@@ -634,12 +679,8 @@ function viewDining() {
             </select>
             <button class="remove-btn" data-action="remove-item" data-collection="menu" data-index="${i}">${icon("x", { size: 13 })}</button>
           </div>
-          <div class="editor-grid cols-3">
-            ${["de", "en", "th"].map((code) => `<div class="ml-field"><span class="lang-tag">Name ${code.toUpperCase()}</span><input value="${escapeAttr(m.name[code] || "")}" data-bind="menu.${i}.name.${code}" /></div>`).join("")}
-          </div>
-          <div class="editor-grid cols-3" style="margin-top:8px;">
-            ${["de", "en", "th"].map((code) => `<div class="ml-field"><span class="lang-tag">Beschreibung ${code.toUpperCase()}</span><input value="${escapeAttr(m.desc[code] || "")}" data-bind="menu.${i}.desc.${code}" /></div>`).join("")}
-          </div>
+          ${triLang("Name", `menu.${i}.name`)}
+          ${triLang("Beschreibung", `menu.${i}.desc`)}
           <div class="num-row">
             <div class="field-mini"><label>Preis (CHF)</label><input type="number" step="0.5" value="${m.price}" data-bind="menu.${i}.price" data-number="true" /></div>
           </div>
@@ -664,9 +705,7 @@ function viewSpa() {
             <span class="muted">Behandlung ${i + 1}</span>
             <button class="remove-btn" data-action="remove-item" data-collection="spaServices" data-index="${i}">${icon("x", { size: 13 })}</button>
           </div>
-          <div class="editor-grid cols-3">
-            ${["de", "en", "th"].map((code) => `<div class="ml-field"><span class="lang-tag">Name ${code.toUpperCase()}</span><input value="${escapeAttr(sv.name[code] || "")}" data-bind="spaServices.${i}.name.${code}" /></div>`).join("")}
-          </div>
+          ${triLang("Name", `spaServices.${i}.name`)}
           <div class="num-row">
             <div class="field-mini"><label>Dauer (Min.)</label><input type="number" value="${sv.duration}" data-bind="spaServices.${i}.duration" data-number="true" /></div>
             <div class="field-mini"><label>Preis (CHF)</label><input type="number" step="0.5" value="${sv.price}" data-bind="spaServices.${i}.price" data-number="true" /></div>
@@ -694,9 +733,7 @@ function viewTaxi() {
           (o, i) => `
         <div class="item-editor-row">
           <div class="row-top"><span class="muted">Option ${i + 1}</span><button class="remove-btn" data-action="remove-item" data-collection="taxiOptions" data-index="${i}">${icon("x", { size: 13 })}</button></div>
-          <div class="editor-grid cols-3">
-            ${["de", "en", "th"].map((code) => `<div class="ml-field"><span class="lang-tag">Name ${code.toUpperCase()}</span><input value="${escapeAttr(o.name[code] || "")}" data-bind="taxiOptions.${i}.name.${code}" /></div>`).join("")}
-          </div>
+          ${triLang("Name", `taxiOptions.${i}.name`)}
         </div>`
         )
         .join("")}
@@ -709,12 +746,8 @@ function viewTaxi() {
           (e, i) => `
         <div class="item-editor-row">
           <div class="row-top"><span class="muted">Ausflug ${i + 1}</span><button class="remove-btn" data-action="remove-item" data-collection="excursions" data-index="${i}">${icon("x", { size: 13 })}</button></div>
-          <div class="editor-grid cols-3">
-            ${["de", "en", "th"].map((code) => `<div class="ml-field"><span class="lang-tag">Name ${code.toUpperCase()}</span><input value="${escapeAttr(e.name[code] || "")}" data-bind="excursions.${i}.name.${code}" /></div>`).join("")}
-          </div>
-          <div class="editor-grid cols-3" style="margin-top:8px;">
-            ${["de", "en", "th"].map((code) => `<div class="ml-field"><span class="lang-tag">Beschreibung ${code.toUpperCase()}</span><input value="${escapeAttr(e.desc[code] || "")}" data-bind="excursions.${i}.desc.${code}" /></div>`).join("")}
-          </div>
+          ${triLang("Name", `excursions.${i}.name`)}
+          ${triLang("Beschreibung", `excursions.${i}.desc`)}
           <div class="num-row"><div class="field-mini"><label>Preis (CHF)</label><input type="number" step="0.5" value="${e.price}" data-bind="excursions.${i}.price" data-number="true" /></div></div>
         </div>`
         )
@@ -985,6 +1018,9 @@ root.addEventListener("click", async (e) => {
   }
   if (action === "staff-delete") {
     return handleStaffDelete(t.dataset.userId, t.dataset.email);
+  }
+  if (action === "translate") {
+    return handleTranslate(t.dataset.basePath, t.dataset.multiline === "true");
   }
   if (action === "add-item") {
     const coll = t.dataset.collection;

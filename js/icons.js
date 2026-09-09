@@ -128,6 +128,12 @@ const ICON_PATHS = {
   volumeX: `<path d="M11 4.702a.7.7 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.7.7 0 0 0 11 19.298z" />
   <path d="m16.5 14.5 5-5" />
   <path d="m16.5 9.5 5 5" />`,
+  languages: `<path d="m5 8 6 6" />
+  <path d="m4 14 6-6 2-3" />
+  <path d="M2 5h12" />
+  <path d="M7 2h1" />
+  <path d="m22 22-5-10-5 10" />
+  <path d="M14 18h6" />`,
 };
 
 export function icon(name, { size = 22, strokeWidth = 1.25, className = "" } = {}) {

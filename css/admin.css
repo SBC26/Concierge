@@ -81,6 +81,15 @@ body { background: var(--paper); }
 
 .plain-field { margin-bottom: 14px; }
 .plain-field label { display: block; font-size: 12px; font-weight: 700; color: var(--ink-soft); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.03em; }
+.ml-label-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 5px; }
+.ml-label-row label { margin-bottom: 0; }
+.translate-btn {
+  display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: #fff;
+  color: var(--copper-600); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px;
+  cursor: pointer; font-family: inherit; white-space: nowrap; text-transform: none; letter-spacing: normal;
+}
+.translate-btn:hover { background: var(--gold-100); }
+.translate-btn:disabled { opacity: 0.6; cursor: default; }
 .plain-field input, .plain-field textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; font-size: 14px; font-family: inherit; }
 
 .rules-hint { font-size: 11px; color: var(--ink-soft); margin-top: 4px; }
