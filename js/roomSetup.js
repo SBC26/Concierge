@@ -8,7 +8,7 @@
 // staff-authenticated session lying around for guests to find.
 import { supabase } from "./supabaseClient.js";
 import { getRooms, setRoom, hasAssignedRoom } from "./store.js";
-import { vaseLogo } from "./logo.js";
+import { fullLockup } from "./logo.js";
 import { escapeHtml } from "./util.js";
 
 let session = null;
@@ -32,8 +32,7 @@ function shell(inner) {
   return `
     <div class="setup-screen">
       <div class="setup-card">
-        <div class="setup-logo">${vaseLogo({ size: 40 })}</div>
-        <div style="text-align:center;margin-bottom:18px;"><span class="brand-kicker">SWISS</span> <span class="brand-word">Baan Chiang</span></div>
+        <div class="setup-logo" style="margin-bottom:18px;">${fullLockup({ height: 90 })}</div>
         ${inner}
       </div>
     </div>`;

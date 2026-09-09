@@ -46,15 +46,27 @@ Swiss-Baan-Chiang-Brandkit übernommen:
   (Icon-Namen siehe `node_modules/lucide-static/icons/`) und
   `node generate-icons.js` erneut ausführen (`npm install` lädt dafür einmalig
   `lucide-static` als Dev-Tool, wird von der App selbst nicht benötigt).
-- **Logo & Favicon**: [js/logo.js](js/logo.js) — die Amphore aus dem Brandkit,
-  von Hand als SVG nachgebaut (zuletzt anhand der vom Nutzer bereitgestellten
-  Referenzgrafik verfeinert). `vaseLogo()` liefert die Marke überall dort, wo
-  sie in der App auftaucht: Kopfzeile (Gast), Sidebar (Backoffice), Postkarten-
-  Stempel und die Vollbild-Postkarte. [favicon.svg](favicon.svg) nutzt dieselbe
-  Silhouette auf der Marken-Hintergrundfarbe; PNG-Fallbacks (`favicon-32.png`
-  fürs Browser-Tab, `favicon-180.png` als Apple-Touch-Icon) liegen daneben.
-  Bei Änderungen an `favicon.svg` mit `node render-favicons.js` neu erzeugen
-  (braucht `canvas` als Dev-Tool, nicht Teil der ausgelieferten App).
+- **Logo & Favicon**: echte Markenartwork, nicht mehr handgezeichnet. Quelle
+  sind die vom Betreiber gelieferten Vektordateien `brand-assets/Logo Kelch.svg`
+  (Amphore/Icon) und `brand-assets/Logo Schrift.svg` (voller Schriftzug mit
+  Bergmotiv und Untertitel „Green Retreat & Residence Hua Hin"). Beide sind als
+  PDF/Canva-Export sehr gross (Masken/Farbverläufe als eingebettete Rasterdaten,
+  kein normaler Vektorpfad) und daher nicht direkt fürs Web geeignet — stattdessen
+  einmalig mit `node brand-assets/process-kelch.js` bzw.
+  `node brand-assets/process-schrift.js` in schlanke PNGs mit transparentem
+  Hintergrund gerendert (Ergebnis in `assets/`): `logo-kelch.png` (Icon, überall
+  wo `vaseLogo()` aus [js/logo.js](js/logo.js) verwendet wird — Kopfzeile,
+  Sidebar, Postkarten-Stempel), `logo-wordmark-text.png` (nur „Swiss Baan
+  Chiang"-Schriftzug, `wordmarkLogo()` — Backoffice-Sidebar) und
+  `logo-wordmark-full.png` (volles Lockup mit Berg + Untertitel, `fullLockup()`
+  — Login- und Zimmer-Einrichtungsbildschirm). Die Gäste-Kopfzeile bleibt
+  bewusst reiner Text (nicht das Bild), weil der Markenname auf Thai anders
+  geschrieben wird (`i18n.js` → `hotelName`) und ein Bild das nicht könnte.
+  `favicon-32.png`/`favicon-180.png` entstehen aus `logo-kelch.png` mit
+  `node render-favicons.js` (Marken-Hintergrundfarbe + zentriertes Icon,
+  braucht `canvas` als Dev-Tool). Bei einer neuen/aktualisierten Logo-Datei:
+  neue Datei nach `brand-assets/` legen, die beiden `process-*.js`-Skripte und
+  danach `render-favicons.js` erneut ausführen.
 
 ## Lokal starten
 

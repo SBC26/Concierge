@@ -19,7 +19,7 @@ import {
 } from "./store.js";
 import { escapeHtml, FONT_OPTIONS, postcardHTML } from "./util.js";
 import { icon } from "./icons.js";
-import { vaseLogo } from "./logo.js";
+import { vaseLogo, wordmarkLogo, fullLockup } from "./logo.js";
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./supabaseClient.js";
 
 const root = document.getElementById("admin");
@@ -311,7 +311,7 @@ function sidebar() {
     <div class="admin-sidebar">
       <div class="admin-brand">
         <div class="brand-mark">${vaseLogo({ size: 34 })}</div>
-        <div><div class="admin-brand-name"><span class="brand-kicker" style="color:var(--gold-500);">SWISS</span> <span class="brand-word">Baan Chiang</span></div><div class="admin-brand-sub">Backoffice</div></div>
+        <div><div class="admin-brand-name">${wordmarkLogo({ height: 20 })}</div><div class="admin-brand-sub">Backoffice</div></div>
       </div>
       ${notifBar()}
       <div class="admin-nav">
@@ -881,9 +881,8 @@ function loginScreen() {
     <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;">
       <form data-action="login-form" style="background:var(--paper-2);border:1px solid var(--line);border-radius:var(--radius);padding:36px;width:340px;box-shadow:var(--shadow);">
         <div style="display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:22px;">
-          <div style="color:var(--gold-500);">${vaseLogo({ size: 40 })}</div>
-          <div class="admin-brand-name" style="text-align:center;"><span class="brand-kicker">SWISS</span> <span class="brand-word">Baan Chiang</span></div>
-          <div class="admin-brand-sub" style="color:var(--ink-soft);">Backoffice-Login</div>
+          ${fullLockup({ height: 90 })}
+          <div class="admin-brand-sub" style="color:var(--ink-soft);margin-top:2px;">Backoffice-Login</div>
         </div>
         <div class="plain-field"><label>E-Mail</label><input id="login-email" type="email" autocomplete="username" required /></div>
         <div class="plain-field"><label>Passwort</label><input id="login-password" type="password" autocomplete="current-password" required /></div>
@@ -898,9 +897,8 @@ function setPasswordScreen() {
     <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;">
       <form data-action="set-password-form" style="background:var(--paper-2);border:1px solid var(--line);border-radius:var(--radius);padding:36px;width:340px;box-shadow:var(--shadow);">
         <div style="display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:22px;">
-          <div style="color:var(--gold-500);">${vaseLogo({ size: 40 })}</div>
-          <div class="admin-brand-name" style="text-align:center;"><span class="brand-kicker">SWISS</span> <span class="brand-word">Baan Chiang</span></div>
-          <div class="admin-brand-sub" style="color:var(--ink-soft);">Willkommen! Bitte Passwort festlegen</div>
+          ${fullLockup({ height: 90 })}
+          <div class="admin-brand-sub" style="color:var(--ink-soft);margin-top:2px;">Willkommen! Bitte Passwort festlegen</div>
         </div>
         <div class="plain-field"><label>Neues Passwort</label><input id="set-pw-1" type="password" autocomplete="new-password" minlength="8" required /></div>
         <div class="plain-field"><label>Passwort bestätigen</label><input id="set-pw-2" type="password" autocomplete="new-password" minlength="8" required /></div>
