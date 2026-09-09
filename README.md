@@ -198,11 +198,11 @@ beim Registrar — hier Hostinger:
    eintragen (siehe „Rollen fürs Personal" oben) — sonst funktionieren neue
    Einladungs-/Passwort-Reset-Links nicht mehr richtig.
 5. QR-Codes fürs Zimmer sind bereits mit der neuen Domain neu erzeugt
-   (`node generate-qrcodes.js`) — falls schon Karten ausgedruckt waren, diese
-   erst ersetzen, sobald Schritt 3 (HTTPS) abgeschlossen ist.
+   (`node generate-qrcodes.js`).
 
-Bis Schritt 3 abgeschlossen ist, bleibt `https://sbc26.github.io/Concierge/`
-parallel erreichbar.
+Status: abgeschlossen — DNS, GitHub Pages (inkl. „Enforce HTTPS") und der
+Supabase-Redirect-URL-Eintrag stehen. `https://sbc26.github.io/Concierge/`
+bleibt zusätzlich erreichbar, falls irgendwo noch die alte Adresse verlinkt ist.
 
 ## Nächste Schritte für den echten Einsatz
 
