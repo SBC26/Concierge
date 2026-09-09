@@ -207,7 +207,7 @@ export async function deleteRow(table, id) {
 
 // ---------- room + language (per-device, not synced) ----------
 export function getRoom() {
-  return localStorage.getItem(ROOM_KEY) || state.rooms[0] || "101";
+  return localStorage.getItem(ROOM_KEY) || state.rooms[0] || "Villa Jungfrau";
 }
 export function setRoom(room) {
   localStorage.setItem(ROOM_KEY, room);
@@ -218,7 +218,7 @@ export function hasAssignedRoom() {
   return localStorage.getItem(ROOM_KEY) !== null;
 }
 
-// Guests scan a per-room QR code (index.html?room=101) on their own phone and
+// Guests scan a per-room QR code (index.html?room=Villa+Jungfrau) on their own phone and
 // land straight in the app for that room, no staff login involved — but only
 // on a device that has never been assigned a room yet. A tablet that already
 // went through the staff-gated setup screen keeps its room even if someone

@@ -168,7 +168,7 @@ Mitarbeiterverwaltung) — bestehende Konten sind davon also nicht betroffen.
 - Sprachumschaltung Deutsch / English / ไทย
 - Digitale Postkarte vom Personal ans Gästegerät: Im Backoffice unter „Postkarte senden“ verfasst das Personal eine Grussbotschaft (Zimmer oder „Alle Zimmer“ wählbar, Schriftart Elegant/Handschrift/Modern), die auf dem passenden Gäste-Tablet automatisch als Overlay im Swiss-Baan-Chiang-Design (Gold/Teal, Airmail-Streifen, Briefmarke, Poststempel) erscheint — ganz ohne Zutun des Gasts
 - Feste Zimmer-Zuordnung pro Tablet: Einrichtungsbildschirm (Login-geschützt) statt frei wählbarer Demo-Umschaltung; Neuzuweisung über `index.html?setup=1`
-- QR-Code pro Zimmer fürs eigene Smartphone der Gäste (`index.html?room=101`, kein Login nötig) — Backoffice-Seite „QR-Codes fürs Zimmer" zum Herunterladen/Ausdrucken
+- QR-Code pro Zimmer fürs eigene Smartphone der Gäste (`index.html?room=Villa%20Jungfrau`, kein Login nötig) — Backoffice-Seite „QR-Codes fürs Zimmer" zum Herunterladen/Ausdrucken
 - Backoffice-Dashboard: alle Bestellungen als Kanban (Neu / In Bearbeitung / Erledigt), Status per Klick ändern
 - Backoffice-Inhaltspflege: WLAN, Öffnungszeiten, Willkommenstext, Hausregeln, Ausflugstipps, Speisekarte, Spa-Angebote, Taxi-Optionen — alles mehrsprachig editierbar, Artikel hinzufügen/entfernen
 - Echtes Backend (Supabase) mit Login-Schutz fürs Backoffice und geräteübergreifender Live-Synchronisation über Realtime

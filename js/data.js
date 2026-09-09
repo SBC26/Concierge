@@ -1,5 +1,5 @@
 // Swiss Baan Chiang – seed data (editable later from the admin/back-office view)
-export const DEFAULT_ROOMS = ["101", "102", "204", "305", "412"];
+export const DEFAULT_ROOMS = ["Villa Jungfrau", "Villa Rigi", "Villa Pilatus", "Villa Boa", "Villa Zermatt"];
 
 export const DEFAULT_STATE = {
   content: {

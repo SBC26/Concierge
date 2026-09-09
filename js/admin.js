@@ -724,6 +724,12 @@ function viewTaxi() {
 }
 
 // ---------- QR CODES ----------
+// Room names (e.g. "Villa Jungfrau") aren't safe as filenames as-is — slugify
+// for the QR image path. Must match the slug() in generate-qrcodes.js.
+function slugifyRoom(s) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
 function viewQr() {
   const rooms = getRooms();
   return `
@@ -737,15 +743,16 @@ function viewQr() {
       <button class="pill-btn" data-action="print" style="margin-bottom:20px;">${icon("scrollText", { size: 15 })} Diese Seite drucken</button>
       <div class="qr-grid">
         ${rooms
-          .map(
-            (r) => `
+          .map((r) => {
+            const file = `qr/zimmer-${slugifyRoom(r)}.png`;
+            return `
           <div class="qr-card">
-            <img src="qr/zimmer-${escapeHtml(r)}.png" alt="QR-Code Zimmer ${escapeHtml(r)}" />
+            <img src="${file}" alt="QR-Code Zimmer ${escapeHtml(r)}" />
             <div class="qr-room">Zimmer ${escapeHtml(r)}</div>
             <div class="qr-url">${escapeHtml(SITE_URL)}/index.html?room=${escapeHtml(r)}</div>
-            <a class="pill-btn sm outline no-print" href="qr/zimmer-${escapeHtml(r)}.png" download="zimmer-${escapeHtml(r)}-qr.png">Herunterladen</a>
-          </div>`
-          )
+            <a class="pill-btn sm outline no-print" href="${file}" download="${file.split("/").pop()}">Herunterladen</a>
+          </div>`;
+          })
           .join("")}
       </div>
       <p class="rules-hint" style="margin-top:18px;">

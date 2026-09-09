@@ -9,11 +9,16 @@ import { DEFAULT_ROOMS } from "./js/data.js";
 const BASE_URL = "https://concierge.swissbaanchiang.com/index.html";
 const OUT_DIR = "./qr";
 
+// Room names (e.g. "Villa Jungfrau") aren't safe as filenames/URLs as-is —
+// slugify for the file on disk, keep the real name in the QR's target URL.
+// Must match the slug() in js/admin.js viewQr(), which links to these files.
+const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
 mkdirSync(OUT_DIR, { recursive: true });
 
 for (const room of DEFAULT_ROOMS) {
   const url = `${BASE_URL}?room=${encodeURIComponent(room)}`;
-  const file = `${OUT_DIR}/zimmer-${room}.png`;
+  const file = `${OUT_DIR}/zimmer-${slug(room)}.png`;
   await QRCode.toFile(file, url, {
     width: 600,
     margin: 2,
