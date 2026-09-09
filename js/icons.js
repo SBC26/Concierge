@@ -134,6 +134,8 @@ const ICON_PATHS = {
   <path d="M7 2h1" />
   <path d="m22 22-5-10-5 10" />
   <path d="M14 18h6" />`,
+  copy: `<rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+  <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />`,
 };
 
 export function icon(name, { size = 22, strokeWidth = 1.25, className = "" } = {}) {

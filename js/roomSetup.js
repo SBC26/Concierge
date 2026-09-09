@@ -40,25 +40,25 @@ function shell(inner) {
 
 function loginScreen() {
   return shell(`
-    <h2>Zimmer-Einrichtung</h2>
-    <p class="muted">Dieses Gerät ist noch keinem Zimmer zugewiesen. Bitte mit dem Personal-Login bestätigen, welches Zimmer dieses Tablet bedient.</p>
+    <h2>Villa-Einrichtung</h2>
+    <p class="muted">Dieses Gerät ist noch keiner Villa zugewiesen. Bitte mit dem Personal-Login bestätigen, welche Villa dieses Tablet bedient.</p>
     <form data-action="setup-login-form">
       <div class="field"><label>E-Mail</label><input id="setup-email" type="email" autocomplete="username" required /></div>
       <div class="field"><label>Passwort</label><input id="setup-password" type="password" autocomplete="current-password" required /></div>
-      ${authError ? `<p style="color:#a34a3a;font-size:13px;margin:-6px 0 14px;">${escapeHtml(authError)}</p>` : ""}
-      <button class="pill-btn full gold" type="submit">Anmelden</button>
+      ${authError ? `<p class="error-text" style="margin:-6px 0 14px;">${escapeHtml(authError)}</p>` : ""}
+      <button class="btn-primary" type="submit">Anmelden</button>
     </form>`);
 }
 
 function pickScreen() {
   const rooms = getRooms();
   return shell(`
-    <h2>Zimmer wählen</h2>
-    <p class="muted">Welches Zimmer bedient dieses Gerät?</p>
+    <h2>Villa wählen</h2>
+    <p class="muted">Welche Villa bedient dieses Gerät?</p>
     <div class="setup-room-grid">
-      ${rooms.map((r) => `<button class="pill-btn ${picked === r ? "" : "outline"}" data-action="setup-pick-room" data-room="${r}">Zimmer ${escapeHtml(r)}</button>`).join("")}
+      ${rooms.map((r) => `<button class="btn-secondary ${picked === r ? "picked" : ""}" data-action="setup-pick-room" data-room="${r}">${escapeHtml(r)}</button>`).join("")}
     </div>
-    <button class="pill-btn full gold" data-action="setup-confirm" ${picked ? "" : "disabled"} style="margin-top:18px;">Bestätigen &amp; abmelden</button>`);
+    <button class="btn-primary" data-action="setup-confirm" ${picked ? "" : "disabled"} style="margin-top:18px;">Bestätigen &amp; abmelden</button>`);
 }
 
 export function renderRoomSetup() {

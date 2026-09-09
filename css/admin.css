@@ -1,6 +1,82 @@
-@import url("style.css");
+/*
+  Backoffice-only stylesheet. Deliberately self-contained (does not import
+  style.css) — the guest-facing app was redesigned onto the --sbc-* Villa
+  Concierge token system, but the backoffice keeps its own established,
+  staff-facing look (the original teal/gold/paper palette) rather than
+  adopting the guest brand tokens.
+*/
+@import url("https://fonts.googleapis.com/css2?family=Italiana&family=Marcellus&family=Dancing+Script:wght@600;700&family=Montserrat:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap");
 
-body { background: var(--paper); }
+:root {
+  --teal-950: #172f3c;
+  --teal-900: #1c3644;
+  --teal-800: #23414f;
+  --teal-100: #f2e6da;
+  --gold-500: #bfa672;
+  --gold-600: #a68a54;
+  --gold-100: #f2ead8;
+  --copper: #b28066;
+  --copper-600: #9c6b52;
+  --clay: #8a6750;
+  --sand: #d4c5b0;
+  --paper: #f6f0e4;
+  --paper-2: #ffffff;
+  --ink: #22303a;
+  --ink-soft: #5f6c74;
+  --line: #e4dbc9;
+  --shadow: 0 10px 30px -12px rgba(23, 47, 60, 0.25);
+  --radius: 18px;
+  --radius-sm: 12px;
+  --radius-btn: 8px;
+  --status-new: var(--copper);
+  --status-progress: var(--gold-600);
+  --status-done: #4a7c59;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: "Montserrat", "Noto Sans Thai", sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+[lang="th"], .lang-th { font-family: "Noto Sans Thai", "Montserrat", sans-serif; }
+.icon { flex-shrink: 0; vertical-align: middle; }
+h1, h2, h3, .display { font-family: "Italiana", "Marcellus", "Noto Sans Thai", serif; font-weight: 400; margin: 0; letter-spacing: 0.01em; }
+p { margin: 0; }
+button { font-family: inherit; }
+
+.pill-btn { border: none; border-radius: var(--radius-btn); padding: 10px 18px; font-weight: 600; font-size: 14px; cursor: pointer; background: var(--copper); color: var(--teal-950); }
+.pill-btn.gold { background: var(--gold-500); color: var(--teal-950); }
+.pill-btn.outline { background: transparent; border: 1.5px solid var(--teal-900); color: var(--teal-900); }
+.pill-btn.dark { background: var(--teal-900); color: #fff; }
+.pill-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.pill-btn.full { width: 100%; }
+.pill-btn.sm { padding: 7px 12px; font-size: 13px; }
+
+.font-swatches { display: flex; gap: 10px; margin: 6px 0 16px; flex-wrap: wrap; }
+.font-swatch { border: 1.5px solid var(--line); background: #fff; border-radius: var(--radius-sm); padding: 8px 16px; cursor: pointer; text-align: center; min-width: 84px; }
+.font-swatch.active { border-color: var(--gold-500); background: var(--gold-100); }
+.font-swatch .sample { font-size: 20px; color: var(--teal-950); line-height: 1.2; }
+.font-swatch .label { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+
+/* Postcard compose-preview (admin-only light card; the guest-facing full-screen
+   takeover uses its own .postcard-fs-*/.postcard-panel* classes in style.css). */
+.postcard-wrap { display: flex; justify-content: center; margin-bottom: 18px; }
+.postcard { width: 100%; max-width: 420px; aspect-ratio: 3 / 2; background: linear-gradient(155deg, #ffffff 0%, var(--paper) 65%); border-radius: 16px; padding: 6px; box-shadow: var(--shadow); }
+.postcard-border { position: relative; height: 100%; border: 1.5px solid var(--gold-500); border-radius: 11px; padding: 22px 18px 14px; display: flex; flex-direction: column; overflow: hidden; }
+.postcard-border::before, .postcard-border::after { content: ""; position: absolute; left: 12px; right: 12px; height: 5px; border-radius: 3px; background: repeating-linear-gradient(-45deg, var(--copper) 0 8px, var(--gold-500) 8px 16px); opacity: 0.85; }
+.postcard-border::before { top: 7px; }
+.postcard-border::after { bottom: 7px; }
+.postcard-stamp { position: absolute; top: 18px; right: 16px; width: 46px; height: 46px; background: var(--teal-900); color: var(--gold-500); border: 2px dashed var(--gold-500); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: "Marcellus", serif; font-weight: 400; font-size: 14px; letter-spacing: 0.06em; transform: rotate(5deg); box-shadow: 0 2px 6px rgba(23, 47, 60, 0.25); }
+.postcard-postmark { position: absolute; top: 32px; right: 52px; width: 64px; height: 64px; border-radius: 50%; border: 1.5px dashed var(--teal-800); display: flex; align-items: center; justify-content: center; text-align: center; font-size: 7.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--teal-800); line-height: 1.35; padding: 4px; transform: rotate(-9deg); background: rgba(255, 255, 255, 0.5); }
+.postcard-quote { font-family: "Italiana", serif; font-size: 30px; color: var(--gold-500); line-height: 1; margin-bottom: 2px; }
+.postcard-message { flex: 1; font-size: 19px; line-height: 1.45; color: var(--ink); padding-right: 62px; white-space: pre-wrap; word-break: break-word; overflow-y: auto; }
+.postcard-message.placeholder { color: var(--ink-soft); opacity: 0.65; font-family: "Montserrat", sans-serif !important; font-size: 14px; }
+.postcard-footer { font-size: 9.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-soft); border-top: 1px dashed var(--line); padding-top: 6px; margin-top: 6px; }
+
+.fulfillment-input { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; font-size: 12px; font-family: inherit; margin-top: 8px; }
 
 .admin-shell { display: flex; min-height: 100vh; }
 

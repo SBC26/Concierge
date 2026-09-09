@@ -13,6 +13,7 @@ let state = {
   content: {
     wifiSsid: "", wifiPassword: "", breakfastHours: "", restaurantHours: "", spaHours: "",
     checkin: "", checkout: "", receptionPhone: "", welcome: {}, rules: {}, localTips: [],
+    conciergeName: "", conciergePhone: "", emergencyHospital: "", emergencyNumber: "",
   },
   rooms: [],
   menu: [],
@@ -24,10 +25,16 @@ let state = {
   excursions: [],
   orders: [],
   postcards: [],
+  bookings: [],
+  services: [],
+  requests: [],
+  requestItems: [],
 };
 const listeners = new Set();
 const newOrderListeners = new Set();
+const newRequestListeners = new Set();
 let ready = false;
+let basket = [];
 
 export function getState() {
   return state;
@@ -49,6 +56,11 @@ export function onNewOrder(fn) {
   newOrderListeners.add(fn);
   return () => newOrderListeners.delete(fn);
 }
+// Same idea as onNewOrder(), for the new request_items table (Anfragekorb submissions).
+export function onNewRequest(fn) {
+  newRequestListeners.add(fn);
+  return () => newRequestListeners.delete(fn);
+}
 
 // ---------- mappers: snake_case DB rows <-> the app's existing camelCase shape ----------
 const ts = (iso) => (iso ? new Date(iso).getTime() : Date.now());
@@ -59,6 +71,8 @@ function mapContent(row) {
     breakfastHours: row.breakfast_hours, restaurantHours: row.restaurant_hours, spaHours: row.spa_hours,
     checkin: row.checkin, checkout: row.checkout, receptionPhone: row.reception_phone,
     welcome: row.welcome || {}, rules: row.rules || {}, localTips: row.local_tips || [],
+    conciergeName: row.concierge_name || "", conciergePhone: row.concierge_phone || "",
+    emergencyHospital: row.emergency_hospital || "", emergencyNumber: row.emergency_number || "",
   };
 }
 export const mapMenuItem = (r) => ({ id: r.id, category: r.category, price: Number(r.price), name: r.name, desc: r.description, sortOrder: r.sort_order });
@@ -70,11 +84,29 @@ export const mapExcursion = (r) => ({ id: r.id, price: Number(r.price), name: r.
 const mapOrder = (r) => ({ id: r.id, room: r.room, type: r.type, items: r.items || [], note: r.note, total: r.total == null ? null : Number(r.total), status: r.status, createdAt: ts(r.created_at) });
 const mapPostcard = (r) => ({ id: r.id, room: r.room, text: r.text, font: r.font, createdAt: ts(r.created_at) });
 
+const mapBooking = (r) => ({
+  room: r.room, bookingCode: r.booking_code, guestName: r.guest_name,
+  arrival: r.arrival, departure: r.departure, guestsAdults: r.guests_adults, guestsChildren: r.guests_children,
+  bedrooms: r.bedrooms, sizeSqm: r.size_sqm, feature: r.feature, cleaningSchedule: r.cleaning_schedule,
+  depositStatus: r.deposit_status, address: r.address, weatherNote: r.weather_note, updatedAt: ts(r.updated_at),
+});
+export const mapService = (r) => ({
+  id: r.id, category: r.category, name: r.name, shortDesc: r.short_desc,
+  fromPrice: r.from_price == null ? null : Number(r.from_price), priceUnit: r.price_unit,
+  optionGroups: r.option_groups || [], sortOrder: r.sort_order,
+});
+const mapRequest = (r) => ({ id: r.id, requestCode: r.request_code, room: r.room, message: r.message, richtwertTotal: Number(r.richtwert_total || 0), createdAt: ts(r.created_at) });
+const mapRequestItem = (r) => ({
+  id: r.id, requestId: r.request_id, serviceId: r.service_id, category: r.category,
+  serviceName: r.service_name || {}, summary: r.summary, price: r.price == null ? null : Number(r.price),
+  status: r.status, fulfillmentNote: r.fulfillment_note, createdAt: ts(r.created_at),
+});
+
 const byOrder = (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
 
 // ---------- bootstrap: load everything once, then subscribe to live changes ----------
 export async function initStore() {
-  const [content, rooms, menuCategories, menu, housekeepingOptions, spaServices, taxiOptions, excursions, orders, postcards] = await Promise.all([
+  const [content, rooms, menuCategories, menu, housekeepingOptions, spaServices, taxiOptions, excursions, orders, postcards, bookings, services, requests, requestItems] = await Promise.all([
     supabase.from("hotel_content").select("*").eq("id", 1).single(),
     supabase.from("rooms").select("*").order("sort_order"),
     supabase.from("menu_categories").select("*").order("sort_order"),
@@ -85,6 +117,10 @@ export async function initStore() {
     supabase.from("excursions").select("*").order("sort_order"),
     supabase.from("orders").select("*").order("created_at", { ascending: false }),
     supabase.from("postcards").select("*").order("created_at", { ascending: false }),
+    supabase.from("bookings").select("*"),
+    supabase.from("services").select("*").order("sort_order"),
+    supabase.from("requests").select("*").order("created_at", { ascending: false }),
+    supabase.from("request_items").select("*").order("created_at", { ascending: false }),
   ]);
 
   state.content = mapContent(content.data);
@@ -98,6 +134,12 @@ export async function initStore() {
   state.excursions = excursions.data.map(mapExcursion);
   state.orders = orders.data.map(mapOrder);
   state.postcards = postcards.data.map(mapPostcard);
+  state.bookings = (bookings.data || []).map(mapBooking);
+  state.services = (services.data || []).map(mapService);
+  state.requests = (requests.data || []).map(mapRequest);
+  state.requestItems = (requestItems.data || []).map(mapRequestItem);
+
+  basket = loadBasket();
 
   ready = true;
   notify();
@@ -183,6 +225,41 @@ function subscribeRealtime() {
       else upsertLocal(state.postcards, mapPostcard(p.new));
       notify();
     })
+    .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, (p) => {
+      if (p.eventType === "DELETE") state.bookings = state.bookings.filter((b) => b.room !== p.old.room);
+      else {
+        const mapped = mapBooking(p.new);
+        const i = state.bookings.findIndex((b) => b.room === mapped.room);
+        if (i === -1) state.bookings.push(mapped);
+        else state.bookings[i] = mapped;
+      }
+      notify();
+    })
+    .on("postgres_changes", { event: "*", schema: "public", table: "services" }, (p) => {
+      if (p.eventType === "DELETE") removeLocal(state.services, p.old.id);
+      else upsertLocal(state.services, mapService(p.new));
+      state.services.sort(byOrder);
+      notify();
+    })
+    .on("postgres_changes", { event: "*", schema: "public", table: "requests" }, (p) => {
+      if (p.eventType === "DELETE") removeLocal(state.requests, p.old.id);
+      else upsertLocal(state.requests, mapRequest(p.new));
+      notify();
+    })
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "request_items" }, (p) => {
+      const item = mapRequestItem(p.new);
+      upsertLocal(state.requestItems, item);
+      notify();
+      newRequestListeners.forEach((fn) => fn(item));
+    })
+    .on("postgres_changes", { event: "UPDATE", schema: "public", table: "request_items" }, (p) => {
+      upsertLocal(state.requestItems, mapRequestItem(p.new));
+      notify();
+    })
+    .on("postgres_changes", { event: "DELETE", schema: "public", table: "request_items" }, (p) => {
+      removeLocal(state.requestItems, p.old.id);
+      notify();
+    })
     .subscribe();
 }
 
@@ -210,7 +287,9 @@ export function getRoom() {
   return localStorage.getItem(ROOM_KEY) || state.rooms[0] || "Villa Jungfrau";
 }
 export function setRoom(room) {
+  const changed = hasAssignedRoom() && localStorage.getItem(ROOM_KEY) !== room;
   localStorage.setItem(ROOM_KEY, room);
+  if (changed) clearBasket(); // a device reassigned to a different villa starts with an empty basket
 }
 // Whether this device has actually been assigned a room (vs. just falling
 // back to the first room in getRoom()) — used to gate the one-time setup screen.
@@ -293,4 +372,116 @@ export function dismissPostcard(id) {
   const set = getDismissedPostcards();
   set.add(id);
   localStorage.setItem(DISMISSED_POSTCARDS_KEY, JSON.stringify([...set]));
+}
+
+// ---------- booking (current stay per villa) ----------
+export function getBooking(room) {
+  return state.bookings.find((b) => b.room === room) || null;
+}
+// bookings.room (not id) is the primary key, so it needs its own update helper
+// instead of the generic updateRow(table, id, patch).
+export async function updateBookingRow(room, patch) {
+  const { error } = await supabase.from("bookings").update(patch).eq("room", room);
+  if (error) console.error("updateBookingRow failed", error);
+}
+
+// ---------- services catalog ----------
+export function servicesByCategory() {
+  return state.services;
+}
+export function getService(id) {
+  return state.services.find((s) => s.id === id) || null;
+}
+
+// ---------- basket (Anfragekorb draft — transient, persisted per-device across reloads) ----------
+const BASKET_KEY = "sbc_basket";
+function loadBasket() {
+  try {
+    return JSON.parse(localStorage.getItem(BASKET_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+function persistBasket() {
+  localStorage.setItem(BASKET_KEY, JSON.stringify(basket));
+}
+export function getBasket() {
+  return basket;
+}
+export function addToBasket(item) {
+  basket = [...basket, { key: crypto.randomUUID(), ...item }];
+  persistBasket();
+  notify();
+}
+export function updateBasketItem(key, item) {
+  basket = basket.map((b) => (b.key === key ? { ...b, ...item } : b));
+  persistBasket();
+  notify();
+}
+export function removeFromBasket(key) {
+  basket = basket.filter((b) => b.key !== key);
+  persistBasket();
+  notify();
+}
+export function clearBasket() {
+  basket = [];
+  persistBasket();
+  notify();
+}
+export function basketTotal() {
+  return basket.reduce((sum, b) => sum + (b.price || 0), 0);
+}
+
+// ---------- requests (submitted baskets) ----------
+export async function submitRequest({ room, message, lines }) {
+  const requestCode = `SBC-${Math.floor(1000 + Math.random() * 9000)}`;
+  const total = lines.reduce((sum, l) => sum + (l.price || 0), 0);
+  const { data: request, error } = await supabase
+    .from("requests")
+    .insert({ request_code: requestCode, room, message: message || null, richtwert_total: total })
+    .select()
+    .single();
+  if (error) {
+    console.error("submitRequest failed", error);
+    return null;
+  }
+  const itemRows = lines.map((l) => ({
+    request_id: request.id,
+    service_id: l.serviceId,
+    category: l.category,
+    service_name: l.serviceName,
+    summary: l.summary,
+    price: l.price ?? null,
+  }));
+  const { data: items, error: itemsError } = await supabase.from("request_items").insert(itemRows).select();
+  if (itemsError) {
+    console.error("submitRequest (items) failed", itemsError);
+    return null;
+  }
+  upsertLocal(state.requests, mapRequest(request));
+  items.forEach((row) => upsertLocal(state.requestItems, mapRequestItem(row)));
+  clearBasket();
+  notify();
+  return mapRequest(request);
+}
+export async function setRequestItemStatus(id, status, fulfillmentNote) {
+  const patch = { status };
+  if (fulfillmentNote !== undefined) patch.fulfillment_note = fulfillmentNote;
+  const item = state.requestItems.find((i) => i.id === id);
+  if (item) {
+    item.status = status;
+    if (fulfillmentNote !== undefined) item.fulfillmentNote = fulfillmentNote;
+    notify();
+  }
+  await updateRow("request_items", id, patch);
+}
+export function requestsForRoom(room) {
+  const ids = new Set(state.requests.filter((r) => r.room === room).map((r) => r.id));
+  return state.requestItems.filter((i) => ids.has(i.requestId)).sort((a, b) => b.createdAt - a.createdAt);
+}
+export function requestById(id) {
+  return state.requests.find((r) => r.id === id) || null;
+}
+export function requestItemsFor(requestId) {
+  return state.requestItems.filter((i) => i.requestId === requestId);
 }

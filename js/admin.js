@@ -4,19 +4,13 @@ import {
   subscribe,
   isReady,
   initStore,
-  setOrderStatus,
   getRooms,
   addPostcard,
   updateHotelContent,
   updateRow,
-  insertRow,
-  deleteRow,
-  mapMenuItem,
-  mapSpaService,
-  mapTaxiOption,
-  mapExcursion,
-  mapHousekeeping,
-  onNewOrder,
+  updateBookingRow,
+  setRequestItemStatus,
+  onNewRequest,
 } from "./store.js";
 import { escapeHtml, FONT_OPTIONS, postcardHTML } from "./util.js";
 import { icon } from "./icons.js";
@@ -42,7 +36,9 @@ let setPasswordSubmitting = false;
 // (full access), same as the DB side. "admin" has the same full access as
 // "reception" plus staff management, which "reception" itself no longer has.
 const ROLE_LABEL = { admin: "Admin", reception: "Rezeption", kitchen: "Küche", housekeeping: "Housekeeping", spa: "Spa" };
-const ROLE_ORDER_TYPES = { kitchen: ["dining"], housekeeping: ["housekeeping"], spa: ["spa"] };
+// Maps staff roles to the service `category` values they're scoped to (matches
+// the request_items RLS policy exactly: kitchen->chef, housekeeping->housekeeping, spa->spa).
+const ROLE_CATEGORIES = { kitchen: ["chef"], housekeeping: ["housekeeping"], spa: ["spa"] };
 function currentRole() {
   return session?.user?.app_metadata?.role || "reception";
 }
@@ -113,13 +109,13 @@ function playChime() {
   }
 }
 
-function showOrderNotification(order) {
+function showRequestNotification(item) {
   if (notifPermission !== "granted") return;
-  const label = TYPE_LABEL[order.type] || order.type;
-  const notif = new Notification(`Neue Bestellung — Zimmer ${order.room}`, {
-    body: `${label}: ${order.items.join(", ")}`,
+  const room = getState().requests.find((r) => r.id === item.requestId)?.room || "";
+  const notif = new Notification(`Neue Anfrage — Villa ${room}`, {
+    body: `${tf(item.serviceName, "de")}${item.summary ? `: ${item.summary}` : ""}`,
     icon: "favicon-32.png",
-    tag: `order-${order.id}`,
+    tag: `request-item-${item.id}`,
   });
   notif.onclick = () => {
     window.focus();
@@ -127,12 +123,12 @@ function showOrderNotification(order) {
   };
 }
 
-onNewOrder((order) => {
+onNewRequest((item) => {
   if (!session) return;
-  const allowedTypes = ROLE_ORDER_TYPES[currentRole()];
-  if (allowedTypes && !allowedTypes.includes(order.type)) return;
+  const allowedCategories = ROLE_CATEGORIES[currentRole()];
+  if (allowedCategories && !allowedCategories.includes(item.category)) return;
   playChime();
-  showOrderNotification(order);
+  showRequestNotification(item);
 });
 
 // postcard-compose state
@@ -240,8 +236,8 @@ function camelToSnake(s) {
   return s.replace(/[A-Z]/g, (m) => "_" + m.toLowerCase());
 }
 
-const TABLE_FOR = { menu: "menu_items", spaServices: "spa_services", taxiOptions: "taxi_options", excursions: "excursions", housekeepingOptions: "housekeeping_options" };
-const COL_FOR = { desc: "description" };
+const TABLE_FOR = { services: "services" };
+const COL_FOR = { desc: "description", optionGroups: "option_groups", fromPrice: "from_price", priceUnit: "price_unit", shortDesc: "short_desc" };
 
 // Applies one `data-bind` path change both to the local cache (instant UI feedback)
 // and to the matching Supabase table/column (so it reaches every other device).
@@ -265,6 +261,11 @@ async function commit(path, value) {
     await updateHotelContent({ [camelToSnake(field)]: s.content[field] });
   } else if (root0 === "spaSlots") {
     await updateHotelContent({ spa_slots: s.spaSlots });
+  } else if (root0 === "bookings") {
+    // bookings.room (not id) is the primary key.
+    const row = s.bookings[Number(segs[1])];
+    const field = segs[2];
+    await updateBookingRow(row.room, { [camelToSnake(field)]: row[field] });
   } else if (TABLE_FOR[root0]) {
     const index = Number(segs[1]);
     const field = segs[2];
@@ -286,6 +287,18 @@ async function commitLocalTips() {
   await updateHotelContent({ local_tips: s.content.localTips });
 }
 
+async function commitServiceOptionGroups(si) {
+  const s = getState();
+  const row = s.services[si];
+  flash = true;
+  render();
+  setTimeout(() => {
+    flash = false;
+    document.querySelectorAll(".save-flash").forEach((el) => el.classList.remove("show"));
+  }, 1400);
+  await updateRow("services", row.id, { option_groups: row.optionGroups });
+}
+
 function fmtTime(ts) {
   const d = new Date(ts);
   return d.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
@@ -295,15 +308,13 @@ function sidebar() {
   const fullAccess = hasFullAccess();
   const canStaff = canManageStaff();
   const items = [
-    { id: "dashboard", icon: "clipboardList", label: "Bestellungen" },
+    { id: "dashboard", icon: "clipboardList", label: "Anfragen" },
     ...(fullAccess ? [{ id: "postcard", icon: "mail", label: "Postkarte senden" }] : []),
   ];
   const contentItems = [
     { id: "info", icon: "conciergeBell", label: "Hotel-Infos" },
-    { id: "dining", icon: "utensilsCrossed", label: "Speisekarte" },
-    { id: "housekeeping", icon: "brushCleaning", label: "Housekeeping" },
-    { id: "spa", icon: "flower2", label: "Spa-Angebote" },
-    { id: "taxi", icon: "carTaxiFront", label: "Taxi & Ausflüge" },
+    { id: "services", icon: "utensilsCrossed", label: "Services" },
+    { id: "bookings", icon: "doorOpen", label: "Buchungen" },
   ];
   const accessItems = [
     ...(fullAccess ? [{ id: "qr", icon: "doorOpen", label: "QR-Codes fürs Zimmer" }] : []),
@@ -359,58 +370,67 @@ function topHeader(title, sub) {
     </div>`;
 }
 
-// ---------- DASHBOARD ----------
-const STATUSES = [
-  { id: "new", label: "Neu" },
-  { id: "in_progress", label: "In Bearbeitung" },
-  { id: "done", label: "Erledigt" },
+// ---------- DASHBOARD (Anfragen / request items) ----------
+const REQ_STATUSES = [
+  { id: "in_pruefung", label: "In Prüfung" },
+  { id: "bestaetigt", label: "Bestätigt" },
+  { id: "erledigt", label: "Erledigt" },
 ];
-const TYPE_LABEL = { dining: "Zimmerservice", housekeeping: "Housekeeping", spa: "Spa", taxi: "Taxi", excursion: "Ausflug" };
-const TYPE_ICON = { dining: "utensilsCrossed", housekeeping: "brushCleaning", spa: "flower2", taxi: "carTaxiFront", excursion: "mapPin" };
-const NEXT_STATUS = { new: "in_progress", in_progress: "done" };
+const CATEGORY_LABEL = {
+  transfer: "Flughafen-Transfer", housekeeping: "Housekeeping", chef: "Private Chef", spa: "Spa & Massage",
+  laundry: "Wäscherei", excursions: "Golf & Ausflüge", vehicle: "Auto & Scooter", visa: "Visa & Behörden", maintenance: "Wartung & Technik",
+};
+const CATEGORY_ICON = {
+  transfer: "carTaxiFront", housekeeping: "brushCleaning", chef: "utensilsCrossed", spa: "flower2",
+  laundry: "shirt", excursions: "mapPin", vehicle: "carTaxiFront", visa: "scrollText", maintenance: "sparkles",
+};
+const NEXT_REQ_STATUS = { in_pruefung: "bestaetigt", bestaetigt: "erledigt" };
 
 const ROLE_DASHBOARD_TITLE = {
-  reception: ["Bestellungen &amp; Wünsche", "Alle Anfragen aus den Zimmern in Echtzeit"],
-  kitchen: ["Küchen-Bestellungen", "Zimmerservice-Anfragen aus den Zimmern in Echtzeit"],
-  housekeeping: ["Housekeeping-Wünsche", "Housekeeping-Anfragen aus den Zimmern in Echtzeit"],
-  spa: ["Spa-Termine", "Spa-Anfragen aus den Zimmern in Echtzeit"],
+  reception: ["Anfragen", "Alle Gästeanfragen in Echtzeit"],
+  kitchen: ["Private-Chef-Anfragen", "Anfragen aus den Villen in Echtzeit"],
+  housekeeping: ["Housekeeping-Anfragen", "Anfragen aus den Villen in Echtzeit"],
+  spa: ["Spa-Anfragen", "Anfragen aus den Villen in Echtzeit"],
 };
 
 function viewDashboard() {
   const role = currentRole();
-  const allowedTypes = ROLE_ORDER_TYPES[role];
-  const orders = [...getState().orders]
-    .filter((o) => !allowedTypes || allowedTypes.includes(o.type))
+  const allowedCategories = ROLE_CATEGORIES[role];
+  const s = getState();
+  const items = [...s.requestItems]
+    .filter((i) => !allowedCategories || allowedCategories.includes(i.category))
     .sort((a, b) => b.createdAt - a.createdAt);
   const [title, sub] = ROLE_DASHBOARD_TITLE[role] || ROLE_DASHBOARD_TITLE.reception;
   return `
     ${topHeader(title, sub)}
     <div class="kanban">
-      ${STATUSES.map((st) => {
-        const list = orders.filter((o) => o.status === st.id);
+      ${REQ_STATUSES.map((st) => {
+        const list = items.filter((i) => i.status === st.id);
         return `
         <div class="kanban-col">
           <h3>${st.label} <span class="kanban-count">${list.length}</span></h3>
-          ${list.length === 0 ? `<p class="muted" style="font-size:13px;">Keine Einträge</p>` : list.map((o) => orderChip(o)).join("")}
+          ${list.length === 0 ? `<p class="muted" style="font-size:13px;">Keine Einträge</p>` : list.map((i) => requestChip(i)).join("")}
         </div>`;
       }).join("")}
     </div>`;
 }
 
-function orderChip(o) {
-  const next = NEXT_STATUS[o.status];
+function requestChip(item) {
+  const room = getState().requests.find((r) => r.id === item.requestId)?.room || "";
+  const next = NEXT_REQ_STATUS[item.status];
   return `
     <div class="order-chip">
       <div class="row-between">
-        <span class="room-tag">Zi. ${o.room}</span>
-        <span class="type-tag">${TYPE_ICON[o.type] ? icon(TYPE_ICON[o.type], { size: 13 }) : ""} ${TYPE_LABEL[o.type] || o.type}</span>
+        <span class="room-tag">${escapeHtml(room)}</span>
+        <span class="type-tag">${CATEGORY_ICON[item.category] ? icon(CATEGORY_ICON[item.category], { size: 13 }) : ""} ${CATEGORY_LABEL[item.category] || item.category}</span>
       </div>
-      <div class="items">${o.items.map(escapeHtml).join(", ")}</div>
-      ${o.note ? `<div class="note">${icon("scrollText", { size: 13 })} ${escapeHtml(o.note)}</div>` : ""}
-      <div class="meta">${fmtTime(o.createdAt)}${o.total ? ` · CHF ${o.total.toFixed(2)}` : ""}</div>
+      <div class="items">${escapeHtml(tf(item.serviceName, "de"))}</div>
+      ${item.summary ? `<div class="note">${icon("scrollText", { size: 13 })} ${escapeHtml(item.summary)}</div>` : ""}
+      <div class="meta">${fmtTime(item.createdAt)}${item.price != null ? ` · CHF ${item.price.toFixed(0)}` : ""}</div>
+      <input class="fulfillment-input" placeholder="Notiz zur Erledigung (z. B. Fahrer &amp; Nummer)" value="${escapeAttr(item.fulfillmentNote || "")}" data-action="set-fulfillment" data-id="${item.id}" />
       <div class="actions">
-        ${next ? `<button class="pill-btn sm" data-action="advance" data-id="${o.id}" data-next="${next}">${icon("arrowRight", { size: 13 })} ${STATUSES.find((s) => s.id === next).label}</button>` : ""}
-        ${o.status !== "new" ? `<button class="pill-btn sm outline" data-action="advance" data-id="${o.id}" data-next="new">↺</button>` : ""}
+        ${next ? `<button class="pill-btn sm" data-action="advance-request" data-id="${item.id}" data-next="${next}">${icon("arrowRight", { size: 13 })} ${REQ_STATUSES.find((s) => s.id === next).label}</button>` : ""}
+        ${item.status !== "in_pruefung" ? `<button class="pill-btn sm outline" data-action="advance-request" data-id="${item.id}" data-next="in_pruefung">↺</button>` : ""}
       </div>
     </div>`;
 }
@@ -524,15 +544,6 @@ const TIP_ICON_CHOICES = [
   { id: "clock", label: "Zeitlich begrenzt" },
 ];
 
-const HOUSEKEEPING_ICON_CHOICES = [
-  { id: "droplets", label: "Bad / Handtücher" },
-  { id: "bed", label: "Bettwäsche" },
-  { id: "brushCleaning", label: "Reinigung" },
-  { id: "moon", label: "Nicht stören" },
-  { id: "shirt", label: "Wäscheservice" },
-  { id: "sparkles", label: "Extras" },
-];
-
 // ---------- INFO EDITOR ----------
 // staff writes German, clicks "Übersetzen" to fill EN/TH via the translate-fields
 // Edge Function (Anthropic API) — result lands directly in the editable fields
@@ -622,6 +633,16 @@ function viewInfo() {
     </div>
 
     <div class="editor-section">
+      <h3>Concierge &amp; Notfall <span class="rules-hint">(für „Direkt schreiben" und „Im Notfall" im Gäste-Portal)</span></h3>
+      <div class="editor-grid">
+        <div class="plain-field"><label>Concierge-Name</label><input value="${escapeAttr(c.conciergeName)}" data-bind="content.conciergeName" /></div>
+        <div class="plain-field"><label>Concierge WhatsApp-Nummer</label><input value="${escapeAttr(c.conciergePhone)}" data-bind="content.conciergePhone" placeholder="+66812345678" /></div>
+        <div class="plain-field"><label>Spital (Name &amp; Distanz)</label><input value="${escapeAttr(c.emergencyHospital)}" data-bind="content.emergencyHospital" /></div>
+        <div class="plain-field"><label>Notrufnummer</label><input value="${escapeAttr(c.emergencyNumber)}" data-bind="content.emergencyNumber" /></div>
+      </div>
+    </div>
+
+    <div class="editor-section">
       <h3>Öffnungszeiten</h3>
       <div class="editor-grid cols-3">
         <div class="plain-field"><label>Frühstück</label><input value="${escapeAttr(c.breakfastHours)}" data-bind="content.breakfastHours" /></div>
@@ -666,6 +687,11 @@ function viewInfo() {
           </div>
           ${triLang("Titel", `content.localTips.${i}.title`)}
           ${triLang("Text", `content.localTips.${i}.desc`)}
+          <div class="num-row">
+            <div class="field-mini"><label>Fahrzeit (z. B. „8 Min.")</label><input value="${escapeAttr(tip.travelTime || "")}" data-bind="content.localTips.${i}.travelTime" /></div>
+            <div class="field-mini"><label>Tags (kommagetrennt, z. B. „Essen, Mit Kindern")</label><input value="${(tip.tags || []).join(", ")}" data-bind="content.localTips.${i}.tags" data-list="comma" /></div>
+          </div>
+          ${triLang("Aktions-Link (optional, z. B. Tisch anfragen)", `content.localTips.${i}.actionLabel`)}
         </div>`
         )
         .join("")}
@@ -674,124 +700,106 @@ function viewInfo() {
   `;
 }
 
-// ---------- MENU EDITOR ----------
-function viewDining() {
+// ---------- SERVICES EDITOR (unified catalog, 9 fixed categories) ----------
+// Each service's own option groups drive the guest-facing Service-Detail
+// screen. Staff can edit name/description/price and, for choice-driven groups
+// (segmented/choice-list), add or remove the individual options — the group
+// structure itself (which categories have which groups) is fixed by design,
+// mirrored from the mockups, so it isn't editable here.
+function groupOptionsHaveOwnPrice(group) {
+  return (group.options || []).some((o) => o.price != null);
+}
+
+function viewServices() {
   const s = getState();
   return `
-    ${topHeader("Speisekarte", "Artikel, Preise und Übersetzungen für den Zimmerservice")}
-    <div class="editor-section">
-      ${s.menu
-        .map(
-          (m, i) => `
-        <div class="item-editor-row">
-          <div class="row-top">
-            <select data-bind="menu.${i}.category">
-              ${s.menuCategories.map((c) => `<option value="${c.id}" ${c.id === m.category ? "selected" : ""}>${tf(c.label, "de")}</option>`).join("")}
-            </select>
-            <button class="remove-btn" data-action="remove-item" data-collection="menu" data-index="${i}">${icon("x", { size: 13 })}</button>
+    ${topHeader("Services", "Der Servicekatalog, den Gäste im Portal durchstöbern und anfragen")}
+    ${s.services
+      .map(
+        (sv, si) => `
+      <div class="editor-section">
+        <h3>${escapeHtml(tf(sv.name, "de"))}</h3>
+        ${triLang("Name", `services.${si}.name`)}
+        ${triLang("Kurzbeschreibung", `services.${si}.shortDesc`)}
+        <div class="num-row">
+          <div class="field-mini">
+            <label>Ab-Preis (CHF, leer = „inklusive")</label>
+            <input type="number" step="1" value="${sv.fromPrice ?? ""}" data-bind="services.${si}.fromPrice" data-number="true" />
           </div>
-          ${triLang("Name", `menu.${i}.name`)}
-          ${triLang("Beschreibung", `menu.${i}.desc`)}
-          <div class="num-row">
-            <div class="field-mini"><label>Preis (CHF)</label><input type="number" step="0.5" value="${m.price}" data-bind="menu.${i}.price" data-number="true" /></div>
-          </div>
-        </div>`
-        )
-        .join("")}
-      <button class="add-btn" data-action="add-item" data-collection="menu">+ Neuer Artikel</button>
+          <div class="field-mini"><label>Preiseinheit (optional, z. B. „Tag")</label><input value="${escapeAttr(sv.priceUnit || "")}" data-bind="services.${si}.priceUnit" /></div>
+        </div>
+        ${sv.optionGroups.map((g, gi) => optionGroupEditor(sv, si, g, gi)).join("")}
+      </div>`
+      )
+      .join("")}`;
+}
+
+function optionGroupEditor(service, si, group, gi) {
+  const hasOptions = group.type === "segmented" || group.type === "choice-list";
+  return `
+    <div class="item-editor-row" style="background:rgba(191,166,114,0.06);">
+      <div class="row-top"><span class="muted">Gruppe „${escapeHtml(group.key)}" (${escapeHtml(group.type)})</span></div>
+      ${triLang("Feldbezeichnung", `services.${si}.optionGroups.${gi}.label`)}
+      ${
+        hasOptions
+          ? `
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:10px;">
+          ${(group.options || [])
+            .map(
+              (opt, oi) => `
+            <div class="item-editor-row" style="margin-bottom:0;">
+              <div class="row-top">
+                <span class="muted">Option ${oi + 1}</span>
+                <button class="remove-btn" data-action="remove-option" data-si="${si}" data-gi="${gi}" data-oi="${oi}">${icon("x", { size: 13 })}</button>
+              </div>
+              ${triLang("Bezeichnung", `services.${si}.optionGroups.${gi}.options.${oi}.label`)}
+              ${
+                opt.price != null || groupOptionsHaveOwnPrice(group)
+                  ? `<div class="num-row"><div class="field-mini"><label>Preis (CHF)</label><input type="number" step="1" value="${opt.price ?? 0}" data-bind="services.${si}.optionGroups.${gi}.options.${oi}.price" data-number="true" /></div></div>`
+                  : ""
+              }
+            </div>`
+            )
+            .join("")}
+        </div>
+        <button class="add-btn" data-action="add-option" data-si="${si}" data-gi="${gi}">+ Option hinzufügen</button>`
+          : ""
+      }
     </div>`;
 }
 
-// ---------- HOUSEKEEPING EDITOR ----------
-function viewHousekeeping() {
+// ---------- BOOKINGS EDITOR (current stay per villa) ----------
+function viewBookings() {
   const s = getState();
   return `
-    ${topHeader("Housekeeping", "Wünsche, die Gäste per Mehrfachauswahl anfragen können")}
-    <div class="editor-section">
-      ${s.housekeepingOptions
-        .map(
-          (h, i) => `
-        <div class="item-editor-row">
-          <div class="row-top">
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span style="color:var(--copper);display:flex;">${icon(h.icon, { size: 18 })}</span>
-              <select data-bind="housekeepingOptions.${i}.icon" style="border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:12px;">
-                ${HOUSEKEEPING_ICON_CHOICES.map((c) => `<option value="${c.id}" ${c.id === h.icon ? "selected" : ""}>${c.label}</option>`).join("")}
-              </select>
-            </div>
-            <button class="remove-btn" data-action="remove-item" data-collection="housekeepingOptions" data-index="${i}">${icon("x", { size: 13 })}</button>
-          </div>
-          ${triLang("Name", `housekeepingOptions.${i}.name`)}
-        </div>`
-        )
-        .join("")}
-      <button class="add-btn" data-action="add-item" data-collection="housekeepingOptions">+ Option hinzufügen</button>
-    </div>`;
-}
-
-// ---------- SPA EDITOR ----------
-function viewSpa() {
-  const s = getState();
-  return `
-    ${topHeader("Spa-Angebote", "Behandlungen, Dauer und Preise")}
-    <div class="editor-section">
-      ${s.spaServices
-        .map(
-          (sv, i) => `
-        <div class="item-editor-row">
-          <div class="row-top">
-            <span class="muted">Behandlung ${i + 1}</span>
-            <button class="remove-btn" data-action="remove-item" data-collection="spaServices" data-index="${i}">${icon("x", { size: 13 })}</button>
-          </div>
-          ${triLang("Name", `spaServices.${i}.name`)}
-          <div class="num-row">
-            <div class="field-mini"><label>Dauer (Min.)</label><input type="number" value="${sv.duration}" data-bind="spaServices.${i}.duration" data-number="true" /></div>
-            <div class="field-mini"><label>Preis (CHF)</label><input type="number" step="0.5" value="${sv.price}" data-bind="spaServices.${i}.price" data-number="true" /></div>
-          </div>
-        </div>`
-        )
-        .join("")}
-      <button class="add-btn" data-action="add-item" data-collection="spaServices">+ Behandlung hinzufügen</button>
-    </div>
-    <div class="editor-section">
-      <h3>Verfügbare Uhrzeiten <span class="rules-hint">(kommagetrennt)</span></h3>
-      <input class="plain-field" style="border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:14px;width:100%;" value="${s.spaSlots.join(", ")}" data-bind="spaSlots" data-list="comma" />
-    </div>`;
-}
-
-// ---------- TAXI EDITOR ----------
-function viewTaxi() {
-  const s = getState();
-  return `
-    ${topHeader("Taxi &amp; Ausflüge", "Fahrtoptionen und buchbare Ausflüge")}
-    <div class="editor-section">
-      <h3>Fahrtoptionen</h3>
-      ${s.taxiOptions
-        .map(
-          (o, i) => `
-        <div class="item-editor-row">
-          <div class="row-top"><span class="muted">Option ${i + 1}</span><button class="remove-btn" data-action="remove-item" data-collection="taxiOptions" data-index="${i}">${icon("x", { size: 13 })}</button></div>
-          ${triLang("Name", `taxiOptions.${i}.name`)}
-        </div>`
-        )
-        .join("")}
-      <button class="add-btn" data-action="add-item" data-collection="taxiOptions">+ Fahrtoption hinzufügen</button>
-    </div>
-    <div class="editor-section">
-      <h3>Ausflüge</h3>
-      ${s.excursions
-        .map(
-          (e, i) => `
-        <div class="item-editor-row">
-          <div class="row-top"><span class="muted">Ausflug ${i + 1}</span><button class="remove-btn" data-action="remove-item" data-collection="excursions" data-index="${i}">${icon("x", { size: 13 })}</button></div>
-          ${triLang("Name", `excursions.${i}.name`)}
-          ${triLang("Beschreibung", `excursions.${i}.desc`)}
-          <div class="num-row"><div class="field-mini"><label>Preis (CHF)</label><input type="number" step="0.5" value="${e.price}" data-bind="excursions.${i}.price" data-number="true" /></div></div>
-        </div>`
-        )
-        .join("")}
-      <button class="add-btn" data-action="add-item" data-collection="excursions">+ Ausflug hinzufügen</button>
-    </div>`;
+    ${topHeader("Buchungen", "Die aktuelle Buchung je Villa — das sehen Gäste unter „Deine Buchung“")}
+    ${s.bookings
+      .map(
+        (b, i) => `
+      <div class="editor-section">
+        <h3>${escapeHtml(b.room)}</h3>
+        <div class="editor-grid">
+          <div class="plain-field"><label>Gastname</label><input value="${escapeAttr(b.guestName)}" data-bind="bookings.${i}.guestName" /></div>
+          <div class="plain-field"><label>Buchungsnummer</label><input value="${escapeAttr(b.bookingCode)}" data-bind="bookings.${i}.bookingCode" /></div>
+          <div class="plain-field"><label>Anreise</label><input type="date" value="${b.arrival || ""}" data-bind="bookings.${i}.arrival" /></div>
+          <div class="plain-field"><label>Abreise</label><input type="date" value="${b.departure || ""}" data-bind="bookings.${i}.departure" /></div>
+        </div>
+        <div class="num-row">
+          <div class="field-mini"><label>Erwachsene</label><input type="number" min="0" value="${b.guestsAdults}" data-bind="bookings.${i}.guestsAdults" data-number="true" /></div>
+          <div class="field-mini"><label>Kinder</label><input type="number" min="0" value="${b.guestsChildren}" data-bind="bookings.${i}.guestsChildren" data-number="true" /></div>
+          <div class="field-mini"><label>Schlafzimmer</label><input type="number" min="0" value="${b.bedrooms ?? ""}" data-bind="bookings.${i}.bedrooms" data-number="true" /></div>
+          <div class="field-mini"><label>Fläche (m²)</label><input type="number" min="0" value="${b.sizeSqm ?? ""}" data-bind="bookings.${i}.sizeSqm" data-number="true" /></div>
+        </div>
+        <div class="editor-grid">
+          <div class="plain-field"><label>Ausstattungs-Highlight</label><input value="${escapeAttr(b.feature)}" data-bind="bookings.${i}.feature" placeholder="z. B. Gartenpool" /></div>
+          <div class="plain-field"><label>Reinigungsplan</label><input value="${escapeAttr(b.cleaningSchedule)}" data-bind="bookings.${i}.cleaningSchedule" placeholder="z. B. Mo &amp; Do, 10:00" /></div>
+          <div class="plain-field"><label>Kaution</label><input value="${escapeAttr(b.depositStatus)}" data-bind="bookings.${i}.depositStatus" placeholder="z. B. hinterlegt" /></div>
+          <div class="plain-field"><label>Wetter-Hinweis</label><input value="${escapeAttr(b.weatherNote)}" data-bind="bookings.${i}.weatherNote" placeholder="z. B. Hua Hin · 31° · sonnig" /></div>
+        </div>
+        <div class="plain-field"><label>Adresse</label><input value="${escapeAttr(b.address)}" data-bind="bookings.${i}.address" /></div>
+      </div>`
+      )
+      .join("")}`;
 }
 
 // ---------- QR CODES ----------
@@ -899,17 +907,11 @@ function hydrateStaffPage() {
 }
 
 const SITE_URL = "https://concierge.swissbaanchiang.com";
-const PAGES = { dashboard: viewDashboard, postcard: viewPostcard, info: viewInfo, dining: viewDining, housekeeping: viewHousekeeping, spa: viewSpa, taxi: viewTaxi, qr: viewQr, staff: viewStaff };
-const TABLE_FOR_COLLECTION = { menu: "menu_items", spaServices: "spa_services", taxiOptions: "taxi_options", excursions: "excursions", housekeepingOptions: "housekeeping_options" };
-const MAPPER_FOR_COLLECTION = { menu: mapMenuItem, spaServices: mapSpaService, taxiOptions: mapTaxiOption, excursions: mapExcursion, housekeepingOptions: mapHousekeeping };
-const BLANK_ITEM_PAYLOAD = {
-  menu: (sortOrder) => ({ category: "mains", price: 0, name: { de: "Neuer Artikel", en: "New item", th: "รายการใหม่" }, description: { de: "", en: "", th: "" }, sort_order: sortOrder }),
-  spaServices: (sortOrder) => ({ name: { de: "Neue Behandlung", en: "New treatment", th: "ทรีตเมนต์ใหม่" }, duration: 30, price: 0, sort_order: sortOrder }),
-  taxiOptions: (sortOrder) => ({ name: { de: "Neue Option", en: "New option", th: "ตัวเลือกใหม่" }, sort_order: sortOrder }),
-  excursions: (sortOrder) => ({ price: 0, name: { de: "Neuer Ausflug", en: "New excursion", th: "ทัวร์ใหม่" }, description: { de: "", en: "", th: "" }, sort_order: sortOrder }),
-  housekeepingOptions: (sortOrder) => ({ icon: "sparkles", name: { de: "Neue Option", en: "New option", th: "ตัวเลือกใหม่" }, sort_order: sortOrder }),
-};
-const BLANK_TIP = () => ({ icon: "mapPin", title: { de: "Neuer Tipp", en: "New tip", th: "เคล็ดลับใหม่" }, desc: { de: "", en: "", th: "" } });
+const PAGES = { dashboard: viewDashboard, postcard: viewPostcard, info: viewInfo, services: viewServices, bookings: viewBookings, qr: viewQr, staff: viewStaff };
+const BLANK_TIP = () => ({
+  icon: "mapPin", title: { de: "Neuer Tipp", en: "New tip", th: "เคล็ดลับใหม่" }, desc: { de: "", en: "", th: "" },
+  travelTime: "", tags: [], actionLabel: { de: "", en: "", th: "" },
+});
 
 // ---------- auth screens ----------
 function loadingScreen() {
@@ -1046,8 +1048,8 @@ root.addEventListener("click", async (e) => {
     page = t.dataset.page;
     return render();
   }
-  if (action === "advance") {
-    setOrderStatus(t.dataset.id, t.dataset.next);
+  if (action === "advance-request") {
+    setRequestItemStatus(t.dataset.id, t.dataset.next);
     return;
   }
   if (action === "staff-reset-pw") {
@@ -1059,22 +1061,26 @@ root.addEventListener("click", async (e) => {
   if (action === "translate") {
     return handleTranslate(t.dataset.basePath, t.dataset.multiline === "true");
   }
-  if (action === "add-item") {
-    const coll = t.dataset.collection;
+  if (action === "add-option") {
+    const si = Number(t.dataset.si);
+    const gi = Number(t.dataset.gi);
     const s = getState();
-    const row = await insertRow(TABLE_FOR_COLLECTION[coll], BLANK_ITEM_PAYLOAD[coll](s[coll].length));
-    if (row) s[coll].push(MAPPER_FOR_COLLECTION[coll](row));
-    return render();
+    const group = s.services[si].optionGroups[gi];
+    group.options = group.options || [];
+    group.options.push({
+      value: crypto.randomUUID(),
+      label: { de: "Neue Option", en: "New option", th: "ตัวเลือกใหม่" },
+      ...(groupOptionsHaveOwnPrice(group) ? { price: 0 } : {}),
+    });
+    return commitServiceOptionGroups(si);
   }
-  if (action === "remove-item") {
-    const coll = t.dataset.collection;
-    const idx = Number(t.dataset.index);
+  if (action === "remove-option") {
+    const si = Number(t.dataset.si);
+    const gi = Number(t.dataset.gi);
+    const oi = Number(t.dataset.oi);
     const s = getState();
-    const row = s[coll][idx];
-    s[coll].splice(idx, 1);
-    render();
-    await deleteRow(TABLE_FOR_COLLECTION[coll], row.id);
-    return;
+    s.services[si].optionGroups[gi].options.splice(oi, 1);
+    return commitServiceOptionGroups(si);
   }
   if (action === "add-tip") {
     getState().content.localTips.push(BLANK_TIP());
@@ -1119,6 +1125,12 @@ root.addEventListener("change", (e) => {
   const roleSelect = e.target.closest('[data-action="staff-set-role"]');
   if (roleSelect) {
     return handleStaffSetRole(roleSelect.dataset.userId, roleSelect.value);
+  }
+  const fulfillmentInput = e.target.closest('[data-action="set-fulfillment"]');
+  if (fulfillmentInput) {
+    const id = fulfillmentInput.dataset.id;
+    const current = getState().requestItems.find((i) => i.id === id)?.status || "in_pruefung";
+    return setRequestItemStatus(id, current, fulfillmentInput.value);
   }
   const el = e.target.closest("[data-bind]");
   if (!el) return;
