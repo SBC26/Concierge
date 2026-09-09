@@ -448,7 +448,7 @@ function viewPostcard() {
         idPrefix: "pc",
         message: pcText,
         fontId: pcFont,
-        placeholder: "So erscheint Ihre Postkarte auf dem Gästegerät …",
+        placeholder: "So erscheint deine Postkarte auf dem Gästegerät …",
         postmarkLine1: "Swiss Baan Chiang",
         postmarkLine2: fmtDate(Date.now()),
         footerHtml: `Mit herzlichen Grüssen aus dem Swiss Baan Chiang · ${escapeHtml(recipientLabel)}`,
@@ -500,7 +500,7 @@ function updatePcPreview() {
     msg.classList.remove("placeholder");
     msg.style.fontFamily = FONT_OPTIONS.find((f) => f.id === pcFont)?.family || "";
   } else {
-    msg.textContent = "So erscheint Ihre Postkarte auf dem Gästegerät …";
+    msg.textContent = "So erscheint deine Postkarte auf dem Gästegerät …";
     msg.classList.add("placeholder");
   }
   if (btn) btn.disabled = !trimmed;
