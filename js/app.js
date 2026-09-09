@@ -2,7 +2,7 @@ import { t, tf, LANGS, LANG_LABELS } from "./i18n.js";
 import { getState, subscribe, isReady, initStore, getRoom, applyRoomFromUrl, getLang, setLang, addOrder, ordersForRoom, postcardsForRoom, getDismissedPostcards, dismissPostcard } from "./store.js";
 import { escapeHtml, FONT_MAP } from "./util.js";
 import { icon } from "./icons.js";
-import { vaseLogo } from "./logo.js";
+import { vaseLogo, wordmarkLogo } from "./logo.js";
 import { setupActive, renderRoomSetup, initRoomSetup } from "./roomSetup.js";
 
 const app = document.getElementById("app");
@@ -51,6 +51,13 @@ function langSwitcher() {
 
 function header({ title, sub, showBack = false }) {
   const [kicker, ...rest] = t("hotelName", lang).split(" ");
+  // The real wordmark artwork spells out the Latin "Swiss Baan Chiang" — matches
+  // the DE/EN name exactly, but Thai uses its own transliteration (i18n.js
+  // hotelName.th), so only DE/EN get the image; Thai keeps the styled text.
+  const brandName =
+    lang === "th"
+      ? `<div class="brand-name"><span class="brand-kicker">${kicker}</span> <span class="brand-word" lang="${lang}">${rest.join(" ")}</span></div>`
+      : `<div class="brand-name">${wordmarkLogo({ height: 26 })}</div>`;
   return `
   <div class="topbar">
     <div class="topbar-row">
@@ -58,7 +65,7 @@ function header({ title, sub, showBack = false }) {
         showBack
           ? `<button class="back-btn" data-action="go-home">${icon("arrowLeft", { size: 18 })}</button>`
           : `<div class="brand"><div class="brand-mark">${vaseLogo({ size: 34 })}</div>
-              <div><div class="brand-name"><span class="brand-kicker">${kicker}</span> <span class="brand-word" lang="${lang}">${rest.join(" ")}</span></div><div class="brand-tagline">${t("tagline", lang)}</div></div>
+              <div>${brandName}<div class="brand-tagline">${t("tagline", lang)}</div></div>
             </div>`
       }
       <div class="chip-row">
@@ -431,6 +438,10 @@ function viewIncomingPostcard(pending) {
   });
   const [kicker, ...rest] = t("hotelName", lang).split(" ");
   const fontFamily = FONT_MAP[pending.font] || FONT_MAP.elegant;
+  const fsWord =
+    lang === "th"
+      ? `<div class="postcard-fs-word"><span class="brand-kicker">${escapeHtml(kicker)}</span> <span lang="${lang}">${escapeHtml(rest.join(" "))}</span></div>`
+      : `<div class="postcard-fs-word">${wordmarkLogo({ height: 34 })}</div>`;
   return `
     ${header({})}
     <main class="postcard-takeover">
@@ -438,7 +449,7 @@ function viewIncomingPostcard(pending) {
         <div class="postcard-panel-border">
           <div class="postcard-fs-logo">
             <div class="postcard-fs-icon">${vaseLogo({ size: 44 })}</div>
-            <div class="postcard-fs-word"><span class="brand-kicker">${escapeHtml(kicker)}</span> <span lang="${lang}">${escapeHtml(rest.join(" "))}</span></div>
+            ${fsWord}
             <div class="postcard-fs-tagline">${escapeHtml(t("tagline", lang))}</div>
           </div>
           <div class="postcard-fs-message" style="font-family:${fontFamily};" lang="${lang}">${escapeHtml(pending.text)}</div>
