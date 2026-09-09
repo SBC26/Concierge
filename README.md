@@ -175,6 +175,7 @@ Mitarbeiterverwaltung) — bestehende Konten sind davon also nicht betroffen.
 - Rollen fürs Personal: Rezeption (voll), Küche, Housekeeping, Spa — jede Rolle sieht im Backoffice nur ihre relevanten Bestellungen, durchgesetzt per Row-Level-Security in der Datenbank (nicht nur in der Oberfläche versteckt)
 - Mitarbeiterverwaltung direkt im Backoffice (nur Admin-Rolle): Personal per E-Mail einladen, Rollen zuweisen, Passwort zurücksetzen oder Konto löschen — ohne Supabase-Dashboard, das Personal setzt sein Passwort selbst über den E-Mail-Link
 - Benachrichtigungen bei neuen Bestellungen: Ton (per Web Audio erzeugt, kein Audio-Asset nötig) plus Browser-Notification, solange das Backoffice in einem Tab offen ist — gefiltert nach Rolle (Küche hört nur bei neuen Zimmerservice-Bestellungen usw.). Aktivieren über den Button oben in der Sidebar, je Gerät/Browser einmalig.
+- Automatische Übersetzung: „Übersetzen"-Button neben jedem mehrsprachigen Feld (Speisekarte, Spa, Taxi, Ausflüge, lokale Tipps, Willkommenstext) — Personal trägt Deutsch ein, Englisch + Thai werden per KI vorgeschlagen und landen direkt in den editierbaren Feldern zur Kontrolle, bevor gespeichert wird (siehe „Automatische Übersetzung" unten für die Einrichtung)
 - Eigene Domain (`concierge.swissbaanchiang.com`) statt `sbc26.github.io`, siehe "Eigene Domain" unten
 
 ### Eigene Domain
@@ -204,10 +205,25 @@ Status: abgeschlossen — DNS, GitHub Pages (inkl. „Enforce HTTPS") und der
 Supabase-Redirect-URL-Eintrag stehen. `https://sbc26.github.io/Concierge/`
 bleibt zusätzlich erreichbar, falls irgendwo noch die alte Adresse verlinkt ist.
 
-## Nächste Schritte für den echten Einsatz
+### Automatische Übersetzung
 
-1. Professionelle Übersetzungen für neu angelegte Speisekarten-/Spa-Einträge
-   (aktuell trägt das Personal alle drei Sprachen selbst ein).
+Der „Übersetzen"-Button neben mehrsprachigen Feldern ruft die Server-Funktion
+`supabase/functions/translate-fields` auf, die per Anthropic-API (Claude)
+den deutschen Text nach Englisch und Thai übersetzt. Braucht einmalig einen
+eigenen Anthropic-API-Key (Konto/Key lege ich aus denselben Gründen wie beim
+Supabase-Login nicht selbst an):
+
+1. API-Key erstellen unter [console.anthropic.com](https://console.anthropic.com)
+   (Account → API Keys).
+2. Supabase-Dashboard → *Project Settings → Edge Functions → Secrets* →
+   neues Secret `ANTHROPIC_API_KEY` mit dem Key als Wert eintragen.
+
+Ohne diesen Key zeigt der Button eine Fehlermeldung („noch nicht
+eingerichtet"), der Rest des Backoffice ist davon nicht betroffen. Die
+Übersetzung landet immer in den normalen, weiterhin editierbaren EN/TH-
+Feldern — Personal kann sie vor dem Speichern noch korrigieren.
+
+## Nächste Schritte für den echten Einsatz
 
 **Bewusst zurückgestellt:** „Leaked Password Protection" in Supabase Auth
 (prüft neue Passwörter gegen bekannte Datenlecks) — erst ab dem Pro-Plan
