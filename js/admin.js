@@ -838,6 +838,8 @@ function viewQr() {
 function viewStaff() {
   return `
     ${topHeader("Mitarbeiter verwalten", "Zugänge einladen und Rollen zuweisen")}
+    ${staffActionError ? `<p style="color:#a34a3a;font-size:13px;margin-bottom:14px;">${escapeHtml(staffActionError)}</p>` : ""}
+    ${staffActionMessage ? `<p style="color:var(--status-done);font-size:13px;margin-bottom:14px;">${icon("check", { size: 13 })} ${escapeHtml(staffActionMessage)}</p>` : ""}
     <div class="editor-section">
       <h3>Neuen Mitarbeiter einladen</h3>
       <form data-action="staff-invite-form" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
@@ -857,9 +859,7 @@ function viewStaff() {
         Der/die Mitarbeiter*in bekommt eine E-Mail mit einem Anmelde-Link und legt dort das
         eigene Passwort fest — niemand sonst gibt oder sieht dieses Passwort.
       </p>
-      ${staffActionError ? `<p style="color:#a34a3a;font-size:13px;margin-top:10px;">${escapeHtml(staffActionError)}</p>` : ""}
       ${staffJustInvited ? `<p style="color:var(--status-done);font-size:13px;margin-top:10px;">${icon("check", { size: 13 })} Einladung an ${escapeHtml(staffJustInvited)} verschickt.</p>` : ""}
-      ${staffActionMessage ? `<p style="color:var(--status-done);font-size:13px;margin-top:10px;">${icon("check", { size: 13 })} ${escapeHtml(staffActionMessage)}</p>` : ""}
     </div>
 
     <div class="editor-section">
