@@ -25,7 +25,7 @@ export function postcardHTML({ idPrefix = "postcard", message, fontId, placehold
         <div class="postcard-message ${hasText ? "" : "placeholder"}" id="${idPrefix}-message" style="${hasText ? `font-family:${fontFamily};` : ""}">${
     hasText ? escapeHtml(message) : escapeHtml(placeholder)
   }</div>
-        <div class="postcard-footer">${footerHtml}</div>
+        <div class="postcard-footer" id="${idPrefix}-footer">${footerHtml}</div>
       </div>
     </div>`;
 }

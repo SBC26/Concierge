@@ -135,6 +135,7 @@ onNewRequest((item) => {
 let pcRoom = "all";
 let pcFont = FONT_OPTIONS[0].id;
 let pcText = "";
+let pcFooter = null; // null = not yet initialized; lazily set to defaultPcFooter() on first render
 
 // staff-management state
 const ROLE_OPTIONS = [
@@ -440,10 +441,16 @@ function fmtDate(ts) {
   return new Date(ts).toLocaleDateString("de-CH", { day: "2-digit", month: "long", year: "numeric" });
 }
 
+function defaultPcFooter() {
+  const recipientLabel = pcRoom === "all" ? "Alle Zimmer" : "Zimmer " + pcRoom;
+  return `Mit herzlichen Grüssen aus dem Swiss Baan Chiang · ${recipientLabel} · ${fmtDate(Date.now())}`;
+}
+
 function viewPostcard() {
   const s = getState();
   const sent = [...s.postcards].sort((a, b) => b.createdAt - a.createdAt).slice(0, 8);
   const recipientLabel = pcRoom === "all" ? "Alle Zimmer" : "Zimmer " + pcRoom;
+  if (pcFooter === null) pcFooter = defaultPcFooter();
   return `
     ${topHeader("Postkarte senden", "Eine persönliche Grussbotschaft direkt aufs Gästegerät schicken")}
 
@@ -471,7 +478,7 @@ function viewPostcard() {
         message: pcText,
         fontId: pcFont,
         placeholder: "So erscheint deine Postkarte auf dem Gästegerät …",
-        footerHtml: `Mit herzlichen Grüssen aus dem Swiss Baan Chiang · ${escapeHtml(recipientLabel)} · ${escapeHtml(fmtDate(Date.now()))}`,
+        footerHtml: escapeHtml(pcFooter),
       })}
 
       <div class="plain-field" style="margin-top:16px;"><label>Schriftart</label></div>
@@ -486,6 +493,10 @@ function viewPostcard() {
       </div>
 
       <textarea id="pc-text" rows="4" placeholder="Nachricht eingeben …" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:11px 13px;font-size:14px;font-family:inherit;"></textarea>
+
+      <div class="plain-field" style="margin-top:14px;"><label>Grusszeile (Fusszeile der Postkarte)</label></div>
+      <input id="pc-footer-input" placeholder="Mit herzlichen Grüssen …" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:10px 13px;font-size:13px;font-family:inherit;" />
+
       <button class="pill-btn full gold" id="pc-send-btn" data-action="pc-send" ${pcText.trim() ? "" : "disabled"} style="margin-top:14px;">Postkarte an ${escapeHtml(recipientLabel)} senden</button>
     </div>
 
@@ -512,6 +523,7 @@ function viewPostcard() {
 
 function updatePcPreview() {
   const msg = document.getElementById("pc-message");
+  const foot = document.getElementById("pc-footer");
   const btn = document.getElementById("pc-send-btn");
   if (!msg) return;
   const trimmed = pcText.trim();
@@ -523,12 +535,15 @@ function updatePcPreview() {
     msg.textContent = "So erscheint deine Postkarte auf dem Gästegerät …";
     msg.classList.add("placeholder");
   }
+  if (foot) foot.textContent = pcFooter;
   if (btn) btn.disabled = !trimmed;
 }
 
 function hydratePostcardPage() {
   const ta = document.getElementById("pc-text");
   if (ta) ta.value = pcText;
+  const fo = document.getElementById("pc-footer-input");
+  if (fo) fo.value = pcFooter;
   updatePcPreview();
 }
 
@@ -1091,6 +1106,7 @@ root.addEventListener("click", async (e) => {
   }
   if (action === "pc-set-room") {
     pcRoom = t.dataset.room;
+    pcFooter = defaultPcFooter();
     return render();
   }
   if (action === "pc-set-font") {
@@ -1100,8 +1116,9 @@ root.addEventListener("click", async (e) => {
   if (action === "pc-send") {
     const trimmed = pcText.trim();
     if (!trimmed) return;
-    await addPostcard({ room: pcRoom, text: trimmed, font: pcFont });
+    await addPostcard({ room: pcRoom, text: trimmed, font: pcFont, footer: pcFooter.trim() });
     pcText = "";
+    pcFooter = defaultPcFooter();
     flash = true;
     render();
     setTimeout(() => {
@@ -1115,6 +1132,10 @@ root.addEventListener("click", async (e) => {
 root.addEventListener("input", (e) => {
   if (e.target.id === "pc-text") {
     pcText = e.target.value;
+    updatePcPreview();
+  }
+  if (e.target.id === "pc-footer-input") {
+    pcFooter = e.target.value;
     updatePcPreview();
   }
 });

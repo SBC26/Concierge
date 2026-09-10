@@ -82,7 +82,7 @@ export const mapSpaService = (r) => ({ id: r.id, name: r.name, duration: r.durat
 export const mapTaxiOption = (r) => ({ id: r.id, name: r.name, sortOrder: r.sort_order });
 export const mapExcursion = (r) => ({ id: r.id, price: Number(r.price), name: r.name, desc: r.description, sortOrder: r.sort_order });
 const mapOrder = (r) => ({ id: r.id, room: r.room, type: r.type, items: r.items || [], note: r.note, total: r.total == null ? null : Number(r.total), status: r.status, createdAt: ts(r.created_at) });
-const mapPostcard = (r) => ({ id: r.id, room: r.room, text: r.text, font: r.font, createdAt: ts(r.created_at) });
+const mapPostcard = (r) => ({ id: r.id, room: r.room, text: r.text, font: r.font, footer: r.footer || "", createdAt: ts(r.created_at) });
 
 const mapBooking = (r) => ({
   room: r.room, bookingCode: r.booking_code, guestName: r.guest_name,
@@ -348,7 +348,7 @@ export function ordersForRoom(room) {
 
 // ---------- postcards (staff -> guest device greetings) ----------
 export async function addPostcard(postcard) {
-  const { data, error } = await supabase.from("postcards").insert({ room: postcard.room, text: postcard.text, font: postcard.font }).select().single();
+  const { data, error } = await supabase.from("postcards").insert({ room: postcard.room, text: postcard.text, font: postcard.font, footer: postcard.footer || null }).select().single();
   if (error) {
     console.error("addPostcard failed", error);
     return;

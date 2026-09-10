@@ -54,7 +54,9 @@ function viewIncomingPostcard(pending) {
   const dateStr = new Date(pending.createdAt).toLocaleDateString(lang === "de" ? "de-CH" : lang === "th" ? "th-TH" : "en-GB", {
     day: "2-digit", month: "long", year: "numeric",
   });
-  const footerHtml = `${escapeHtml(t("postcardFrom", lang))} ${escapeHtml(t("hotelName", lang))} · ${escapeHtml(t("room", lang))} ${escapeHtml(room)} · ${dateStr}`;
+  const footerHtml = pending.footer
+    ? escapeHtml(pending.footer)
+    : `${escapeHtml(t("postcardFrom", lang))} ${escapeHtml(t("hotelName", lang))} · ${escapeHtml(t("room", lang))} ${escapeHtml(room)} · ${dateStr}`;
   return `
     ${renderBrandHeader(lang)}
     <main class="postcard-takeover">

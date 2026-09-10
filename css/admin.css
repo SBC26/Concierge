@@ -98,11 +98,14 @@ button { font-family: inherit; }
    frame image with the guest app's full-screen postcard takeover, so both
    always render identically. The frame is the client's own brand asset
    (assets/postcard-frame.png), not a hand-drawn CSS approximation. */
-.postcard-wrap { display: flex; justify-content: center; margin-bottom: 18px; }
+/* .postcard-wrap is capped to the same width as .postcard (see the matching
+   comment in style.css) so the percentage padding below resolves against
+   .postcard's own real width instead of the wider editor-section around it. */
+.postcard-wrap { width: 100%; max-width: 420px; margin: 0 auto 18px; }
 .postcard {
-  width: 100%; max-width: 420px; aspect-ratio: 419.25 / 297.75;
+  width: 100%; aspect-ratio: 419.25 / 297.75;
   background-image: url("../assets/postcard-frame.png"); background-size: 100% 100%; background-repeat: no-repeat;
-  border-radius: 10px; padding: 9% 6%; display: flex; flex-direction: column;
+  border-radius: 10px; padding: 11% 5.5% 6%; display: flex; flex-direction: column;
 }
 .postcard-message { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 17px; line-height: 1.45; color: var(--sbc-sand); white-space: pre-wrap; word-break: break-word; overflow-y: auto; }
 .postcard-message.placeholder { color: var(--ink-soft); opacity: 0.75; font-family: "Montserrat", sans-serif !important; font-size: 13px; }
