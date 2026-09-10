@@ -6,6 +6,8 @@ import {
   initStore,
   getRooms,
   addPostcard,
+  deletePostcard,
+  clearPostcards,
   updateHotelContent,
   updateRow,
   updateBookingRow,
@@ -442,6 +444,8 @@ function fmtDate(ts) {
 }
 
 function defaultPcFooter() {
+  const saved = getState().content.postcardFooterDefault;
+  if (saved) return saved;
   const recipientLabel = pcRoom === "all" ? "Alle Zimmer" : "Zimmer " + pcRoom;
   return `Mit herzlichen Grüssen aus dem Swiss Baan Chiang · ${recipientLabel} · ${fmtDate(Date.now())}`;
 }
@@ -494,14 +498,25 @@ function viewPostcard() {
 
       <textarea id="pc-text" rows="4" placeholder="Nachricht eingeben …" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:11px 13px;font-size:14px;font-family:inherit;"></textarea>
 
-      <div class="plain-field" style="margin-top:14px;"><label>Grusszeile (Fusszeile der Postkarte)</label></div>
+      <div class="ml-label-row" style="margin-top:14px;">
+        <label>Grusszeile (Fusszeile der Postkarte)</label>
+        <button class="translate-btn" data-action="pc-save-footer">${icon("check", { size: 12 })} Als Standard speichern</button>
+      </div>
       <input id="pc-footer-input" placeholder="Mit herzlichen Grüssen …" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:10px 13px;font-size:13px;font-family:inherit;" />
+      <p class="rules-hint">Wird ab sofort als Vorschlag für jede neue Postkarte verwendet, bis du sie erneut speicherst.</p>
 
       <button class="pill-btn full gold" id="pc-send-btn" data-action="pc-send" ${pcText.trim() ? "" : "disabled"} style="margin-top:14px;">Postkarte an ${escapeHtml(recipientLabel)} senden</button>
     </div>
 
     <div class="editor-section">
-      <h3>Zuletzt gesendet</h3>
+      <div class="row-between" style="margin-bottom:14px;">
+        <h3 style="margin-bottom:0;">Zuletzt gesendet</h3>
+        ${
+          canManageStaff() && sent.length
+            ? `<button class="translate-btn" data-action="pc-clear-all">${icon("trash2", { size: 12 })} Liste löschen</button>`
+            : ""
+        }
+      </div>
       ${
         sent.length === 0
           ? `<p class="muted" style="font-size:13px;">Noch keine Postkarte gesendet.</p>`
@@ -511,7 +526,10 @@ function viewPostcard() {
           <div class="order-chip">
             <div class="row-between">
               <span class="room-tag">${p.room === "all" ? "Alle Zimmer" : "Zi. " + escapeHtml(p.room)}</span>
-              <span class="type-tag">${fmtTime(p.createdAt)}</span>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span class="type-tag">${fmtTime(p.createdAt)}</span>
+                <button class="remove-btn" data-action="pc-delete" data-id="${p.id}" title="Löschen / Rückgängig machen">${icon("x", { size: 13 })}</button>
+              </div>
             </div>
             <div class="note" style="margin-top:4px;">${escapeHtml(p.text)}</div>
           </div>`
@@ -1126,6 +1144,27 @@ root.addEventListener("click", async (e) => {
       document.querySelectorAll(".save-flash").forEach((el) => el.classList.remove("show"));
     }, 1400);
     return;
+  }
+  if (action === "pc-save-footer") {
+    const val = pcFooter.trim();
+    getState().content.postcardFooterDefault = val;
+    flash = true;
+    render();
+    setTimeout(() => {
+      flash = false;
+      document.querySelectorAll(".save-flash").forEach((el) => el.classList.remove("show"));
+    }, 1400);
+    await updateHotelContent({ postcard_footer_default: val || null });
+    return;
+  }
+  if (action === "pc-delete") {
+    await deletePostcard(t.dataset.id);
+    return render();
+  }
+  if (action === "pc-clear-all") {
+    if (!confirm("Die gesamte Liste „Zuletzt gesendet“ wirklich unwiderruflich löschen?")) return;
+    await clearPostcards();
+    return render();
   }
 });
 

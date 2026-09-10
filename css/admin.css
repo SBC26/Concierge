@@ -68,6 +68,7 @@ body {
 }
 [lang="th"], .lang-th { font-family: "Noto Sans Thai", "Montserrat", sans-serif; }
 .icon { flex-shrink: 0; vertical-align: middle; }
+.row-between { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 h1, h2, h3, .display { font-family: var(--font-display); font-weight: 400; margin: 0; letter-spacing: var(--tracking-display); color: var(--sbc-gold-bright); }
 p { margin: 0; }
 button { font-family: inherit; }

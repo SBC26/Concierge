@@ -14,6 +14,7 @@ let state = {
     wifiSsid: "", wifiPassword: "", breakfastHours: "", restaurantHours: "", spaHours: "",
     checkin: "", checkout: "", receptionPhone: "", welcome: {}, rules: {}, localTips: [],
     conciergeName: "", conciergePhone: "", emergencyHospital: "", emergencyNumber: "",
+    postcardFooterDefault: "",
   },
   rooms: [],
   menu: [],
@@ -73,6 +74,7 @@ function mapContent(row) {
     welcome: row.welcome || {}, rules: row.rules || {}, localTips: row.local_tips || [],
     conciergeName: row.concierge_name || "", conciergePhone: row.concierge_phone || "",
     emergencyHospital: row.emergency_hospital || "", emergencyNumber: row.emergency_number || "",
+    postcardFooterDefault: row.postcard_footer_default || "",
   };
 }
 export const mapMenuItem = (r) => ({ id: r.id, category: r.category, price: Number(r.price), name: r.name, desc: r.description, sortOrder: r.sort_order });
@@ -358,6 +360,23 @@ export async function addPostcard(postcard) {
 }
 export function postcardsForRoom(room) {
   return state.postcards.filter((p) => p.room === "all" || p.room === room);
+}
+// Deletes one sent postcard — also removes it from any guest device that
+// hasn't dismissed it yet (postcardsForRoom() no longer returns it, and the
+// realtime DELETE event does the same on other open tabs), i.e. doubles as "undo send".
+export async function deletePostcard(id) {
+  removeLocal(state.postcards, id);
+  notify();
+  await deleteRow("postcards", id);
+}
+export async function clearPostcards() {
+  const ids = state.postcards.map((p) => p.id);
+  state.postcards.length = 0;
+  notify();
+  if (ids.length) {
+    const { error } = await supabase.from("postcards").delete().in("id", ids);
+    if (error) console.error("clearPostcards failed", error);
+  }
 }
 
 // Which postcards a guest device has already acknowledged — per-device, not synced.
