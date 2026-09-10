@@ -455,30 +455,23 @@ hr.sep { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
 .sheet-head h3 { font-size: 19px; color: var(--sbc-gold-bright); }
 .icon-btn { border: none; background: var(--sbc-wattblau-soft); color: var(--sbc-sand); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; }
 
-/* ---------- Postcard overlay (unchanged structure, restyled tokens) ---------- */
-main.postcard-takeover { padding: 20px; display: flex; flex-direction: column; gap: 16px; min-height: 0; }
-.postcard-panel { flex: 1; min-height: 0; background: var(--sbc-wattblau-deep); border-radius: var(--radius-md); padding: 4px; display: flex; }
-.postcard-panel-border {
-  flex: 1; min-height: 0; border: 1.5px solid var(--sbc-gold); border-radius: calc(var(--radius-md) - 2px);
-  position: relative; display: flex; flex-direction: column; align-items: center; padding: 36px 28px 22px; overflow: hidden;
+/* ---------- Postcard overlay ----------
+   Shared markup (util.js postcardHTML()) and frame image with the admin
+   compose-preview, so the guest takeover and the staff preview always match
+   pixel-for-pixel — the frame itself is the client's real brand asset
+   (assets/postcard-frame.png), not a hand-drawn CSS approximation. */
+main.postcard-takeover { padding: 20px; flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 20px; min-height: 0; }
+.postcard-wrap { display: flex; justify-content: center; }
+.postcard {
+  width: 100%; max-width: 480px; aspect-ratio: 419.25 / 297.75;
+  background-image: url("../assets/postcard-frame.png"); background-size: 100% 100%; background-repeat: no-repeat;
+  border-radius: var(--radius-md); padding: 9% 6%; display: flex; flex-direction: column;
 }
-.postcard-panel-border::before, .postcard-panel-border::after {
-  content: ""; position: absolute; left: 22px; right: 22px; height: 6px; border-radius: 3px;
-  background: repeating-linear-gradient(-45deg, var(--sbc-copper) 0 10px, var(--sbc-gold) 10px 20px); opacity: 0.9;
-}
-.postcard-panel-border::before { top: 14px; }
-.postcard-panel-border::after { bottom: 14px; }
-.postcard-fs-logo { display: flex; flex-direction: column; align-items: center; margin-top: 8px; flex-shrink: 0; }
-.postcard-fs-icon { color: var(--sbc-gold); display: flex; }
-.postcard-fs-word { font-family: var(--font-display); color: var(--sbc-gold); font-size: 22px; letter-spacing: var(--tracking-display); margin-top: 6px; text-align: center; }
-.postcard-fs-word .brand-kicker { color: var(--sbc-gold); }
-.postcard-fs-tagline { font-family: var(--font-sub); font-size: 10px; letter-spacing: var(--tracking-wide); text-transform: uppercase; color: rgba(233, 223, 209, 0.55); margin-top: 4px; text-align: center; }
-.postcard-fs-message { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--sbc-sand); font-size: 26px; line-height: 1.55; padding: 24px 8px; white-space: pre-wrap; word-break: break-word; overflow-y: auto; }
-.postcard-fs-footer { font-size: 10px; letter-spacing: var(--tracking-wide); text-transform: uppercase; color: rgba(233, 223, 209, 0.45); border-top: 1px dashed rgba(201, 169, 114, 0.25); padding-top: 10px; margin-top: 6px; text-align: center; flex-shrink: 0; }
-.postcard-fs-dismiss { align-self: flex-end; padding: 12px 28px; flex-shrink: 0; width: auto; }
+.postcard-message { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--sbc-sand); font-size: 22px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; overflow-y: auto; }
+.postcard-message.placeholder { color: rgba(233, 223, 209, 0.5); font-family: "Montserrat", sans-serif !important; font-size: 15px; }
+.postcard-footer { font-size: 10px; letter-spacing: var(--tracking-wide); text-transform: uppercase; color: rgba(233, 223, 209, 0.45); border-top: 1px dashed rgba(201, 169, 114, 0.25); padding-top: 10px; margin-top: 8px; text-align: center; flex-shrink: 0; }
 @media (max-width: 380px) {
-  .postcard-fs-message { font-size: 20px; }
-  .postcard-fs-word { font-size: 19px; }
+  .postcard-message { font-size: 18px; }
 }
 
 /* ---------- Room setup / re-assignment screen (unchanged structure) ---------- */

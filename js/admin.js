@@ -344,8 +344,8 @@ function sidebar() {
         }
       </div>
       <div class="admin-footer-note">
-        Änderungen werden sofort auf allen geöffneten Zimmer-Tablets angezeigt.
-        <div style="margin-top:10px;">
+        <span class="footer-hint">Änderungen werden sofort auf allen geöffneten Zimmer-Tablets angezeigt.</span>
+        <div class="footer-account" style="margin-top:10px;">
           <span style="opacity:0.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;">${escapeHtml(session?.user?.email || "")}</span>
           <div class="row-between" style="margin-top:4px;">
             <span class="kanban-count" style="background:rgba(191,166,114,0.25);color:var(--gold-500);">${escapeHtml(ROLE_LABEL[currentRole()] || currentRole())}</span>
@@ -471,9 +471,7 @@ function viewPostcard() {
         message: pcText,
         fontId: pcFont,
         placeholder: "So erscheint deine Postkarte auf dem Gästegerät …",
-        postmarkLine1: "Swiss Baan Chiang",
-        postmarkLine2: fmtDate(Date.now()),
-        footerHtml: `Mit herzlichen Grüssen aus dem Swiss Baan Chiang · ${escapeHtml(recipientLabel)}`,
+        footerHtml: `Mit herzlichen Grüssen aus dem Swiss Baan Chiang · ${escapeHtml(recipientLabel)} · ${escapeHtml(fmtDate(Date.now()))}`,
       })}
 
       <div class="plain-field" style="margin-top:16px;"><label>Schriftart</label></div>

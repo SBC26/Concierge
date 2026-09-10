@@ -3,9 +3,8 @@ import {
   getState, subscribe, isReady, initStore, getRoom, applyRoomFromUrl, getLang, setLang,
   getBasket, removeFromBasket, postcardsForRoom, getDismissedPostcards, dismissPostcard,
 } from "./store.js";
-import { escapeHtml, FONT_MAP } from "./util.js";
+import { escapeHtml, postcardHTML } from "./util.js";
 import { icon } from "./icons.js";
-import { vaseLogo, wordmarkLogo } from "./logo.js";
 import { setupActive, renderRoomSetup, initRoomSetup } from "./roomSetup.js";
 import { renderBrandHeader } from "./views/shared.js";
 import { startView } from "./views/start.js";
@@ -55,26 +54,11 @@ function viewIncomingPostcard(pending) {
   const dateStr = new Date(pending.createdAt).toLocaleDateString(lang === "de" ? "de-CH" : lang === "th" ? "th-TH" : "en-GB", {
     day: "2-digit", month: "long", year: "numeric",
   });
-  const [kicker, ...rest] = t("hotelName", lang).split(" ");
-  const fontFamily = FONT_MAP[pending.font] || FONT_MAP.elegant;
-  const fsWord =
-    lang === "th"
-      ? `<div class="postcard-fs-word"><span class="brand-kicker">${escapeHtml(kicker)}</span> <span lang="${lang}">${escapeHtml(rest.join(" "))}</span></div>`
-      : `<div class="postcard-fs-word">${wordmarkLogo({ height: 34 })}</div>`;
+  const footerHtml = `${escapeHtml(t("postcardFrom", lang))} ${escapeHtml(t("hotelName", lang))} · ${escapeHtml(t("room", lang))} ${escapeHtml(room)} · ${dateStr}`;
   return `
     ${renderBrandHeader(lang)}
     <main class="postcard-takeover">
-      <div class="postcard-panel">
-        <div class="postcard-panel-border">
-          <div class="postcard-fs-logo">
-            <div class="postcard-fs-icon">${vaseLogo({ size: 44 })}</div>
-            ${fsWord}
-            <div class="postcard-fs-tagline">${escapeHtml(t("brandLabel", lang))}</div>
-          </div>
-          <div class="postcard-fs-message" style="font-family:${fontFamily};" lang="${lang}">${escapeHtml(pending.text)}</div>
-          <div class="postcard-fs-footer">${escapeHtml(t("postcardFrom", lang))} ${escapeHtml(t("hotelName", lang))} · ${escapeHtml(t("room", lang))} ${escapeHtml(room)} · ${dateStr}</div>
-        </div>
-      </div>
+      ${postcardHTML({ idPrefix: "incoming", message: pending.text, fontId: pending.font, placeholder: "", footerHtml })}
       <button class="btn-primary" data-action="dismiss-postcard" data-id="${pending.id}" style="max-width:280px;align-self:center;">${t("postcardThanks", lang)}</button>
     </main>`;
 }

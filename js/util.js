@@ -1,5 +1,3 @@
-import { vaseLogo } from "./logo.js";
-
 export function escapeHtml(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
@@ -14,22 +12,20 @@ export const FONT_OPTIONS = [
 export const FONT_MAP = Object.fromEntries(FONT_OPTIONS.map((f) => [f.id, f.family]));
 
 // Shared markup for the Swiss Baan Chiang postcard visual — used both for the
-// staff compose-preview (admin.html) and the incoming greeting overlay (index.html).
-export function postcardHTML({ idPrefix = "postcard", message, fontId, placeholder, postmarkLine1, postmarkLine2, footerHtml }) {
+// staff compose-preview (admin.html) and the incoming greeting overlay (index.html),
+// so the two always render identically. The frame (border, wordmark, hairline)
+// is the client's own brand asset (assets/postcard-frame.png, exported from
+// their design tool as "_Postkarte leer") rather than a hand-drawn CSS approximation.
+export function postcardHTML({ idPrefix = "postcard", message, fontId, placeholder, footerHtml }) {
   const hasText = !!(message && message.trim());
   const fontFamily = FONT_MAP[fontId] || FONT_MAP.elegant;
   return `
     <div class="postcard-wrap">
       <div class="postcard">
-        <div class="postcard-border">
-          <div class="postcard-stamp">${vaseLogo({ size: 28 })}</div>
-          <div class="postcard-postmark">${escapeHtml(postmarkLine1)}<br/>${escapeHtml(postmarkLine2)}</div>
-          <div class="postcard-quote">❝</div>
-          <div class="postcard-message ${hasText ? "" : "placeholder"}" id="${idPrefix}-message" style="${hasText ? `font-family:${fontFamily};` : ""}">${
+        <div class="postcard-message ${hasText ? "" : "placeholder"}" id="${idPrefix}-message" style="${hasText ? `font-family:${fontFamily};` : ""}">${
     hasText ? escapeHtml(message) : escapeHtml(placeholder)
   }</div>
-          <div class="postcard-footer">${footerHtml}</div>
-        </div>
+        <div class="postcard-footer">${footerHtml}</div>
       </div>
     </div>`;
 }
