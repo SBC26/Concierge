@@ -902,7 +902,7 @@ function viewBookings() {
               <div class="sample" style="display:flex;justify-content:center;color:var(--copper);">${icon("monitor", { size: 18 })}</div><div class="label">Fallblattanzeige</div>
             </button>
           </div>
-          <p class="rules-hint">Ruhebildschirm, der beim Laden und nach 2 Min. Inaktivität auf diesem Zimmer-Tablet erscheint.</p>
+          <p class="rules-hint">Ruhebildschirm, der beim Laden und nach 30 Sek. Inaktivität auf diesem Zimmer-Tablet erscheint.</p>
         </div>
         <div class="editor-grid">
           <div class="plain-field"><label>Gastname</label><input value="${escapeAttr(b.guestName)}" data-bind="bookings.${i}.guestName" /></div>

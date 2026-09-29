@@ -20,13 +20,13 @@ import { surroundingsView, setSurroundingsFilter } from "./views/surroundings.js
 
 const app = document.getElementById("app");
 
-const IDLE_TIMEOUT_MS = 2 * 60 * 1000;
+const IDLE_TIMEOUT_MS = 30 * 1000;
 
 let route = "home";
 let lang = getLang();
 let room = getRoom();
 let afterMount = null;
-// The tablet's resting state — shown on load, and restored after 2 minutes
+// The tablet's resting state — shown on load, and restored after 30 seconds
 // without interaction. Content is either the latest postcard or the
 // Fallblattanzeige split-flap board, per this room's idle_mode (see js/views/idle.js).
 let showIdle = true;
@@ -128,6 +128,10 @@ document.addEventListener("click", async (e) => {
     case "nav":
       return navigate(target.dataset.route);
     case "go-home":
+      // The brand logo also sits inside the idle screens (renderBrandHeader) —
+      // tapping it there must exit idle like any other tap, not just set a
+      // route that render() won't reach while showIdle is still true.
+      if (showIdle) return exitIdle();
       return navigate("home");
     case "set-lang":
       lang = target.dataset.lang;

@@ -1,5 +1,5 @@
 // Idle / start screen — the guest tablet's resting state, shown on first load
-// and restored automatically after 2 minutes without interaction (see app.js).
+// and restored automatically after 30 seconds without interaction (see app.js).
 // Per room, staff choose one of two modes (rooms.idle_mode, "Buchungen" editor):
 //
 //   "postcard"  — the most recent staff-sent postcard-channel message, shown
