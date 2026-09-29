@@ -28,7 +28,9 @@ const LEN = 16;
 // from the light); unfold-in is a touch slower with a slight overshoot-and-
 // settle, matching the mechanical "snap" of a real leaf landing flat. Equal
 // durations with the same ease in both directions is what read as a plain
-// squash rather than a card turning.
+// squash rather than a card turning. This is the timing used only for a
+// cell's *final*, landing flip — see FLUTTER_* below for the quick
+// intermediate ones.
 const FOLD_MS = 170;
 const UNFOLD_MS = 230;
 const STAGGER_MS = 35;
@@ -40,6 +42,49 @@ const UNFOLD_EASE = "cubic-bezier(.34,1.56,.64,1)";
 // CSS comment on .fb-cell-flap.
 const FLAP_SHADE = "brightness(0.55) drop-shadow(0 3px 4px rgba(0,0,0,.45))";
 const FLAP_LIT = "brightness(1) drop-shadow(0 0 0 rgba(0,0,0,0))";
+
+// A real split-flap wheel carries every character on one physical reel that
+// only spins forward — to go from "A" to "C" it must click through "B" on
+// the way, and going from "Z" to "A" means clicking through almost the whole
+// alphabet. That forced "flutter" through intermediate characters (not a
+// clean old→new swap) is what actually reads as mechanical; reference:
+// youtube.com/watch?v=DIQl0EKcNHI. Reels also run independently, so cells
+// that happen to need more clicks keep fluttering after their neighbours
+// have already landed — no extra stagger logic needed for that part, it
+// falls out of the character distance on its own.
+const CHARSET = " ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜß0123456789.,!?·-'\"/&()+:;";
+// Real boards click through every intermediate character at full distance
+// (sometimes 30+ clicks); we cap how many we actually render so a cell never
+// flutters longer than roughly a second, however far its real distance is —
+// the rendered characters are evenly sampled along the true forward path, so
+// it still reads as "spinning through the alphabet" rather than skipping.
+const MAX_FLUTTER = 9;
+const FLUTTER_FOLD_MS = 45;
+const FLUTTER_UNFOLD_MS = 45;
+const FLUTTER_EASE = "linear";
+
+// Returns the sequence of characters a cell must click through to get from
+// `fromChar` to `toChar`, forward-only along CHARSET, ending with `toChar`
+// itself. A char missing from CHARSET (stray punctuation, emoji, …) falls
+// back to a single direct flip rather than breaking the animation.
+function charPath(fromChar, toChar) {
+  const from = CHARSET.indexOf(fromChar);
+  const to = CHARSET.indexOf(toChar);
+  if (from === -1 || to === -1) return [toChar];
+  const n = CHARSET.length;
+  const dist = (to - from + n) % n;
+  if (dist <= MAX_FLUTTER + 1) {
+    const steps = [];
+    for (let k = 1; k <= dist; k++) steps.push(CHARSET[(from + k) % n]);
+    return steps;
+  }
+  const steps = [];
+  for (let k = 1; k <= MAX_FLUTTER; k++) {
+    steps.push(CHARSET[(from + Math.round((dist * k) / (MAX_FLUTTER + 1))) % n]);
+  }
+  steps.push(toChar);
+  return steps;
+}
 
 function pad(s) {
   s = (s || "").toUpperCase().slice(0, LEN);
@@ -155,15 +200,43 @@ function patchCell(r, i, patch) {
   if (patch.flapChar !== undefined) c.flapGlyph.textContent = patch.flapChar;
 }
 
-// Same 2D scaleY fold as the original design reference, deliberately not a 3D
-// rotateX/backface-visibility flip (that rendered incorrectly in some
-// screenshot/flattening pipelines) — realism instead comes from asymmetric
-// easing (quick fold away, springy settle on arrival) and a filter dip
-// (darken + drop-shadow) timed with the fold, so the leaf reads as turning
-// edge-on to the light rather than being squashed flat. All 4 rows advance
-// together — cells stagger left-to-right within a row, and each row starts
-// slightly after the one above it, for a top-to-bottom cascade across the
-// whole page change.
+// Runs one cell through its full click-path: quick, flat "linear" flutter
+// flips for every intermediate character, then one slower flip with the
+// asymmetric fold/settle easing for the character it actually lands on —
+// same 2D scaleY fold as the original design reference throughout
+// (deliberately not a 3D rotateX/backface-visibility flip, which rendered
+// incorrectly in some screenshot/flattening pipelines).
+function scheduleFlip(r, i, steps, stepIdx, delay) {
+  if (stepIdx >= steps.length) return;
+  const ch = steps[stepIdx];
+  const isLast = stepIdx === steps.length - 1;
+  const foldMs = isLast ? FOLD_MS : FLUTTER_FOLD_MS;
+  const unfoldMs = isLast ? UNFOLD_MS : FLUTTER_UNFOLD_MS;
+  const foldEase = isLast ? FOLD_EASE : FLUTTER_EASE;
+  const unfoldEase = isLast ? UNFOLD_EASE : FLUTTER_EASE;
+  after(delay, () => {
+    patchCell(r, i, {
+      flapScale: 0, flapFilter: FLAP_SHADE,
+      flapTransition: `transform ${foldMs}ms ${foldEase}, filter ${foldMs}ms ${foldEase}`,
+    });
+    after(foldMs, () => {
+      patchCell(r, i, { char: ch, flapChar: ch, flapScale: 0, flapFilter: FLAP_SHADE, flapTransition: "none" });
+      after(16, () => {
+        patchCell(r, i, {
+          flapScale: 1, flapFilter: FLAP_LIT,
+          flapTransition: `transform ${unfoldMs}ms ${unfoldEase}, filter ${unfoldMs}ms ease-out`,
+        });
+        after(unfoldMs, () => scheduleFlip(r, i, steps, stepIdx + 1, 0));
+      });
+    });
+  });
+}
+
+// All 4 rows advance together — cells stagger left-to-right within a row,
+// and each row starts slightly after the one above it, for a top-to-bottom
+// cascade across the whole page change. Beyond that starting stagger, cells
+// needing more clicks to reach their target keep fluttering after ones that
+// needed fewer — the same organic, uneven "settle" a real board has.
 function advancePage() {
   if (!board) return;
   board.pageIdx = (board.pageIdx + 1) % board.pages.length;
@@ -172,21 +245,8 @@ function advancePage() {
     rowStr.split("").forEach((nextChar, i) => {
       const cell = board.cellsEls[r]?.[i];
       if (!cell || cell.char === nextChar) return;
-      after(r * ROW_STAGGER_MS + i * STAGGER_MS, () => {
-        patchCell(r, i, {
-          flapScale: 0, flapFilter: FLAP_SHADE,
-          flapTransition: `transform ${FOLD_MS}ms ${FOLD_EASE}, filter ${FOLD_MS}ms ${FOLD_EASE}`,
-        });
-        after(FOLD_MS, () => {
-          patchCell(r, i, { char: nextChar, flapChar: nextChar, flapScale: 0, flapFilter: FLAP_SHADE, flapTransition: "none" });
-          after(16, () => {
-            patchCell(r, i, {
-              flapScale: 1, flapFilter: FLAP_LIT,
-              flapTransition: `transform ${UNFOLD_MS}ms ${UNFOLD_EASE}, filter ${UNFOLD_MS}ms ease-out`,
-            });
-          });
-        });
-      });
+      const steps = charPath(cell.char, nextChar);
+      scheduleFlip(r, i, steps, 0, r * ROW_STAGGER_MS + i * STAGGER_MS);
     });
   });
 }
