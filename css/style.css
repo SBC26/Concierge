@@ -472,14 +472,22 @@ main.postcard-takeover { padding: 20px; flex: 1; display: flex; flex-direction: 
    percentage padding below resolves against its own real width — percentage
    padding always resolves against the containing block's width, so a wider
    .postcard-wrap would silently double it. */
-.postcard-wrap { width: 100%; max-width: 1300px; margin: 0 auto; }
+/* max-width tuned so the card fills a landscape iPad-Mini-class tablet
+   (1024x768) nicely without touching edge-to-edge and without the card's
+   height (from aspect-ratio) pushing past the viewport height. */
+.postcard-wrap { width: 100%; max-width: 800px; margin: 0 auto; }
 .postcard {
   width: 100%; aspect-ratio: 419.25 / 297.75; background-color: var(--sbc-wattblau-deep);
   background-image: url("../assets/postcard-frame.png"); background-size: 100% 100%; background-repeat: no-repeat;
   border-radius: var(--radius-md); padding: 11% 5.5% 6%; display: flex; flex-direction: column;
+  container-type: inline-size;
 }
-.postcard-message { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--sbc-sand); font-size: clamp(20px, 8vw, 60px); line-height: 1.55; white-space: pre-wrap; word-break: break-word; overflow-y: auto; }
-.postcard-message.placeholder { color: rgba(233, 223, 209, 0.5); font-family: "Montserrat", sans-serif !important; font-size: 30px; }
+/* cqw (the postcard's own rendered width), not vw — ties the text size to
+   the card itself so it stays proportional regardless of how wide the card
+   ends up, instead of silently overflowing/shrinking whenever .postcard-wrap's
+   max-width changes independently of the viewport. */
+.postcard-message { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--sbc-sand); font-size: clamp(22px, 6.5cqw, 56px); line-height: 1.55; white-space: pre-wrap; word-break: break-word; overflow-y: auto; }
+.postcard-message.placeholder { color: rgba(233, 223, 209, 0.5); font-family: "Montserrat", sans-serif !important; font-size: clamp(15px, 3.5cqw, 28px); }
 .postcard-footer { font-size: 10px; letter-spacing: var(--tracking-wide); text-transform: uppercase; color: rgba(233, 223, 209, 0.45); border-top: 1px dashed rgba(201, 169, 114, 0.25); padding-top: 10px; margin-top: 8px; text-align: center; flex-shrink: 0; }
 
 /* Fallblattanzeige idle screen — split-flap ("Solari board") welcome display.
