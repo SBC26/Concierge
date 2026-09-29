@@ -487,25 +487,32 @@ main.postcard-takeover { padding: 20px; flex: 1; display: flex; flex-direction: 
    overflow:hidden, showing the top or bottom 50% of an oversized glyph) form
    the resting character, with a third "flap" layer folded via 2D scaleY
    (deliberately not a 3D rotateX/backface-visibility flip — see js/views/idle.js). */
-/* Cell size is fluid (a CSS custom property driving width/height/font-size
-   via calc(), all keeping the original 64:118:55 proportions) rather than a
-   couple of fixed breakpoints, so the 16-cell row fits without horizontal
-   scrolling across the whole range from a phone up to the 1133px landscape
-   tablet the board was designed for, clamped to the original 64px at the top end. */
-main.fb-idle {
-  flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 20px 12px;
-  --fb-cell-w: clamp(22px, calc(6.4vw - 8px), 64px);
-}
-.fb-stage { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* Cell size is derived from the row's own real, laid-out width (percentage
+   math against a definite container — .fb-stage/.fb-rows/.fb-row are all
+   forced to width:100% precisely so that width is never itself dependent on
+   the cells' content, which would be circular) rather than an estimated vw
+   formula — a vw guess can't account for scrollbars, ancestor padding, or
+   sub-pixel rounding, which was overflowing by ~10px at some widths and
+   clipping the last column. aspect-ratio (not another percentage calc, which
+   would resolve against the wrong axis) derives the cell's height from
+   whatever width actually gets resolved, and container query units (cqw)
+   do the same for the glyph's font-size and vertical offset — all three stay
+   in the original 64:118:55 proportions at any size between the 22px floor
+   (below which .fb-stage scrolls horizontally instead) and the original 64px. */
+main.fb-idle { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 20px 12px; }
+.fb-stage { width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .fb-rule { height: 1px; width: 64px; background: var(--sbc-gold); margin: 0 auto; flex-shrink: 0; }
-.fb-rows { display: flex; flex-direction: column; gap: 6px; margin: 14px 0; }
-.fb-row { display: flex; gap: 6px; justify-content: center; }
-.fb-cell { position: relative; width: var(--fb-cell-w); height: calc(var(--fb-cell-w) * 1.84375); flex-shrink: 0; }
+.fb-rows { width: 100%; display: flex; flex-direction: column; gap: 6px; margin: 14px 0; }
+.fb-row { width: 100%; display: flex; gap: 6px; justify-content: center; }
+.fb-cell {
+  position: relative; flex-shrink: 0; container-type: inline-size;
+  width: calc((100% - 90px) / 16); min-width: 22px; max-width: 64px; aspect-ratio: 64 / 118;
+}
 .fb-cell-half { position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: var(--sbc-wattblau-soft); border: 1px solid var(--line); }
 .fb-cell-top { top: 0; border-bottom: none; border-radius: var(--radius-xs) var(--radius-xs) 0 0; }
 .fb-cell-bottom { bottom: 0; border-top: none; border-radius: 0 0 var(--radius-xs) var(--radius-xs); }
-.fb-cell-glyph { position: absolute; top: 0; left: 0; width: 100%; height: calc(var(--fb-cell-w) * 1.84375); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: calc(var(--fb-cell-w) * 0.859375); color: var(--sbc-gold-bright); }
-.fb-cell-bottom .fb-cell-glyph { top: calc(var(--fb-cell-w) * -0.921875); }
+.fb-cell-glyph { position: absolute; top: 0; left: 0; width: 100%; height: 184.375cqw; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 85.9375cqw; color: var(--sbc-gold-bright); }
+.fb-cell-bottom .fb-cell-glyph { top: -92.1875cqw; }
 .fb-cell-flap { position: absolute; top: 0; left: 0; width: 100%; height: 50%; overflow: hidden; transform-origin: bottom; background: var(--sbc-wattblau-soft); border: 1px solid var(--line); border-bottom: none; border-radius: var(--radius-xs) var(--radius-xs) 0 0; }
 .fb-cell-seam { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(23, 45, 59, 0.6); z-index: 5; }
 
