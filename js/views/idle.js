@@ -103,20 +103,26 @@ function activeFallblattMessages(room) {
     .sort((a, b) => a.createdAt - b.createdAt);
 }
 
+// While staff have at least one active Fallblattanzeige message for this
+// room, the board shows *only* those — not the booking-info pages — per
+// explicit request: sending a message should replace the rotation, not add
+// to it. The booking-info pages are just the fallback for an otherwise-empty
+// board (a villa where nothing has ever been sent).
 function buildPages(room, booking, messages) {
+  if (messages.length) {
+    return messages.map((msg) => {
+      const lines = wrapMessage(msg.text).map(pad);
+      while (lines.length < 4) lines.push(pad(""));
+      return lines;
+    });
+  }
   const guest = booking?.guestName?.trim() || "Gast";
   const bedrooms = booking?.bedrooms ? `${booking.bedrooms} Schlafzimmer` : "3 Schlafzimmer";
   const feature = booking?.feature?.trim() || "Gartenpool";
-  const pages = [
+  return [
     [pad("Willkommen"), pad(room), pad("Hua Hin · Thailand"), pad(bedrooms)],
     [pad(guest), pad("Baan Chiang"), pad("Green Retreat"), pad(feature)],
   ];
-  for (const msg of messages) {
-    const lines = wrapMessage(msg.text).map(pad);
-    while (lines.length < 4) lines.push(pad(""));
-    pages.push(lines);
-  }
-  return pages;
 }
 
 function after(ms, fn) {
