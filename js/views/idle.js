@@ -24,10 +24,22 @@ import { escapeHtml, postcardHTML } from "../util.js";
 import { renderBrandHeader } from "./shared.js";
 
 const LEN = 16;
-const FLIP_MS = 260;
+// Fold-away is quick and accelerating (gravity pulling the leaf down and away
+// from the light); unfold-in is a touch slower with a slight overshoot-and-
+// settle, matching the mechanical "snap" of a real leaf landing flat. Equal
+// durations with the same ease in both directions is what read as a plain
+// squash rather than a card turning.
+const FOLD_MS = 170;
+const UNFOLD_MS = 230;
 const STAGGER_MS = 35;
 const ROW_STAGGER_MS = 120;
-const EASE = "cubic-bezier(.2,.6,.2,1)";
+const FOLD_EASE = "cubic-bezier(.55,0,1,.45)";
+const UNFOLD_EASE = "cubic-bezier(.34,1.56,.64,1)";
+// filter (not just transform) is what sells the fold as a leaf turning
+// edge-on to the light rather than a flat vertical squash — see the matching
+// CSS comment on .fb-cell-flap.
+const FLAP_SHADE = "brightness(0.55) drop-shadow(0 3px 4px rgba(0,0,0,.45))";
+const FLAP_LIT = "brightness(1) drop-shadow(0 0 0 rgba(0,0,0,0))";
 
 function pad(s) {
   s = (s || "").toUpperCase().slice(0, LEN);
@@ -133,6 +145,7 @@ function patchCell(r, i, patch) {
   const c = board.cellsEls[r]?.[i];
   if (!c) return;
   if (patch.flapScale !== undefined) c.flapEl.style.transform = `scaleY(${patch.flapScale})`;
+  if (patch.flapFilter !== undefined) c.flapEl.style.filter = patch.flapFilter;
   if (patch.flapTransition !== undefined) c.flapEl.style.transition = patch.flapTransition;
   if (patch.char !== undefined) {
     c.char = patch.char;
@@ -144,9 +157,13 @@ function patchCell(r, i, patch) {
 
 // Same 2D scaleY fold as the original design reference, deliberately not a 3D
 // rotateX/backface-visibility flip (that rendered incorrectly in some
-// screenshot/flattening pipelines). All 4 rows advance together — cells
-// stagger left-to-right within a row, and each row starts slightly after the
-// one above it, for a top-to-bottom cascade across the whole page change.
+// screenshot/flattening pipelines) — realism instead comes from asymmetric
+// easing (quick fold away, springy settle on arrival) and a filter dip
+// (darken + drop-shadow) timed with the fold, so the leaf reads as turning
+// edge-on to the light rather than being squashed flat. All 4 rows advance
+// together — cells stagger left-to-right within a row, and each row starts
+// slightly after the one above it, for a top-to-bottom cascade across the
+// whole page change.
 function advancePage() {
   if (!board) return;
   board.pageIdx = (board.pageIdx + 1) % board.pages.length;
@@ -156,11 +173,17 @@ function advancePage() {
       const cell = board.cellsEls[r]?.[i];
       if (!cell || cell.char === nextChar) return;
       after(r * ROW_STAGGER_MS + i * STAGGER_MS, () => {
-        patchCell(r, i, { flapScale: 0, flapTransition: `transform ${FLIP_MS}ms ${EASE}` });
-        after(FLIP_MS, () => {
-          patchCell(r, i, { char: nextChar, flapChar: nextChar, flapScale: 0, flapTransition: "none" });
+        patchCell(r, i, {
+          flapScale: 0, flapFilter: FLAP_SHADE,
+          flapTransition: `transform ${FOLD_MS}ms ${FOLD_EASE}, filter ${FOLD_MS}ms ${FOLD_EASE}`,
+        });
+        after(FOLD_MS, () => {
+          patchCell(r, i, { char: nextChar, flapChar: nextChar, flapScale: 0, flapFilter: FLAP_SHADE, flapTransition: "none" });
           after(16, () => {
-            patchCell(r, i, { flapScale: 1, flapTransition: `transform ${FLIP_MS}ms ${EASE}` });
+            patchCell(r, i, {
+              flapScale: 1, flapFilter: FLAP_LIT,
+              flapTransition: `transform ${UNFOLD_MS}ms ${UNFOLD_EASE}, filter ${UNFOLD_MS}ms ease-out`,
+            });
           });
         });
       });
