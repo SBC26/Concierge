@@ -11,6 +11,8 @@ import {
   updateHotelContent,
   updateRow,
   updateBookingRow,
+  updateRoomRow,
+  getIdleMode,
   setRequestItemStatus,
   onNewRequest,
 } from "./store.js";
@@ -451,7 +453,7 @@ function defaultPcFooter() {
   return `Mit herzlichen Grüssen aus dem Swiss Baan Chiang · ${recipientLabel} · ${fmtDate(Date.now())}`;
 }
 
-// Preview-only word-wrap mirroring fallblatt.js's wrapMessage() (16 chars ×
+// Preview-only word-wrap mirroring js/views/idle.js's wrapMessage() (16 chars ×
 // 4 lines) — duplicated rather than imported since it's purely cosmetic here
 // (the backoffice never renders the actual board), kept in sync by hand.
 function wrapForPreview(text, lineLen = 16, maxLines = 4) {
@@ -472,8 +474,8 @@ function wrapForPreview(text, lineLen = 16, maxLines = 4) {
 }
 
 const PC_CHANNELS = [
-  { id: "postcard", icon: "mail", label: "Postkarte", hint: "Postkarte — als Vollbild-Gruss auf dem Zimmer-Tablet des Gasts." },
-  { id: "fallblatt", icon: "monitor", label: "Fallblattanzeige", hint: "Fallblattanzeige — wird in die Anzeige beim Villeneingang eingewoben (max. 4 Zeilen à 16 Zeichen)." },
+  { id: "postcard", icon: "mail", label: "Postkarte", hint: "Postkarte — erscheint als Ruhebildschirm auf dem Zimmer-Tablet, bis eine neue gesendet wird (nur für Villen mit Startseite „Postkarte“)." },
+  { id: "fallblatt", icon: "monitor", label: "Fallblattanzeige", hint: "Fallblattanzeige — reiht sich als eigene Seite in die Rotation des Ruhebildschirms ein (max. 4 Zeilen à 16 Zeichen, nur für Villen mit Startseite „Fallblattanzeige“)." },
 ];
 
 function viewPostcard() {
@@ -496,6 +498,15 @@ function viewPostcard() {
         ).join("")}
       </div>
       <p class="rules-hint">${PC_CHANNELS.find((c) => c.id === pcChannel).hint}</p>
+      ${
+        isFallblatt
+          ? `<div class="plain-field" style="margin-top:12px;max-width:200px;">
+        <label>Anzeigedauer pro Seite (Sek.)</label>
+        <input type="number" min="2" max="60" value="${s.content.fallblattPageSeconds}" data-bind="content.fallblattPageSeconds" data-number="true" style="width:100%;background:var(--sbc-wattblau);border:1px solid var(--line);color:var(--sbc-sand);border-radius:var(--radius-btn);padding:8px 10px;font-size:13px;font-family:inherit;" />
+        <p class="rules-hint">Gilt für alle Seiten der Fallblattanzeige (Buchungsinfo + aktive Mitteilungen).</p>
+      </div>`
+          : ""
+      }
     </div>
 
     <div class="editor-section">
@@ -869,6 +880,18 @@ function viewBookings() {
         (b, i) => `
       <div class="editor-section">
         <h3>${escapeHtml(b.room)}</h3>
+        <div class="plain-field">
+          <label>Startseite dieses Tablets</label>
+          <div class="font-swatches">
+            <button class="font-swatch ${getIdleMode(b.room) === "postcard" ? "active" : ""}" data-action="set-idle-mode" data-room="${escapeHtml(b.room)}" data-mode="postcard" style="min-width:130px;">
+              <div class="sample" style="display:flex;justify-content:center;color:var(--copper);">${icon("mail", { size: 18 })}</div><div class="label">Postkarte</div>
+            </button>
+            <button class="font-swatch ${getIdleMode(b.room) === "fallblatt" ? "active" : ""}" data-action="set-idle-mode" data-room="${escapeHtml(b.room)}" data-mode="fallblatt" style="min-width:150px;">
+              <div class="sample" style="display:flex;justify-content:center;color:var(--copper);">${icon("monitor", { size: 18 })}</div><div class="label">Fallblattanzeige</div>
+            </button>
+          </div>
+          <p class="rules-hint">Ruhebildschirm, der beim Laden und nach 2 Min. Inaktivität auf diesem Zimmer-Tablet erscheint.</p>
+        </div>
         <div class="editor-grid">
           <div class="plain-field"><label>Gastname</label><input value="${escapeAttr(b.guestName)}" data-bind="bookings.${i}.guestName" /></div>
           <div class="plain-field"><label>Buchungsnummer</label><input value="${escapeAttr(b.bookingCode)}" data-bind="bookings.${i}.bookingCode" /></div>
@@ -1181,6 +1204,19 @@ root.addEventListener("click", async (e) => {
     const idx = Number(t.dataset.index);
     getState().content.localTips.splice(idx, 1);
     return commitLocalTips();
+  }
+  if (action === "set-idle-mode") {
+    const roomName = t.dataset.room;
+    const mode = t.dataset.mode;
+    getState().roomSettings[roomName] = { idleMode: mode };
+    flash = true;
+    render();
+    setTimeout(() => {
+      flash = false;
+      document.querySelectorAll(".save-flash").forEach((el) => el.classList.remove("show"));
+    }, 1400);
+    await updateRoomRow(roomName, { idle_mode: mode });
+    return;
   }
   if (action === "pc-set-channel") {
     pcChannel = t.dataset.channel;

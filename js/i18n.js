@@ -127,9 +127,8 @@ export const UI = {
   },
   filterAll: { de: "Alle", en: "All", th: "ทั้งหมด" },
 
-  postcardIncomingTitle: { de: "Eine Postkarte für dich", en: "A postcard for you", th: "โปสการ์ดถึงท่าน" },
   postcardFrom: { de: "Mit herzlichen Grüssen aus dem", en: "Warm regards from", th: "ด้วยความปรารถนาดีจาก" },
-  postcardThanks: { de: "Vielen Dank", en: "Thank you", th: "ขอบคุณค่ะ/ครับ" },
+  idleHint: { de: "Zum Menü antippen", en: "Tap for the menu", th: "แตะเพื่อดูเมนู" },
 };
 
 export function t(key, lang) {

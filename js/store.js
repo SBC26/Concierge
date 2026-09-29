@@ -7,16 +7,19 @@ import { supabase } from "./supabaseClient.js";
 
 const ROOM_KEY = "sbc_room";
 const LANG_KEY = "sbc_lang";
-const DISMISSED_POSTCARDS_KEY = "sbc_dismissed_postcards";
 
 let state = {
   content: {
     wifiSsid: "", wifiPassword: "", breakfastHours: "", restaurantHours: "", spaHours: "",
     checkin: "", checkout: "", receptionPhone: "", welcome: {}, rules: {}, localTips: [],
     conciergeName: "", conciergePhone: "", emergencyHospital: "", emergencyNumber: "",
-    postcardFooterDefault: "",
+    postcardFooterDefault: "", fallblattPageSeconds: 8,
   },
   rooms: [],
+  // Per-room device settings (idle-screen mode) — keyed by room name, kept
+  // separate from the plain `rooms` name array above since that shape is
+  // relied on widely (room pickers, .includes(), .filter()) as a bare string list.
+  roomSettings: {},
   menu: [],
   menuCategories: [],
   housekeepingOptions: [],
@@ -75,6 +78,7 @@ function mapContent(row) {
     conciergeName: row.concierge_name || "", conciergePhone: row.concierge_phone || "",
     emergencyHospital: row.emergency_hospital || "", emergencyNumber: row.emergency_number || "",
     postcardFooterDefault: row.postcard_footer_default || "",
+    fallblattPageSeconds: row.fallblatt_page_seconds || 8,
   };
 }
 export const mapMenuItem = (r) => ({ id: r.id, category: r.category, price: Number(r.price), name: r.name, desc: r.description, sortOrder: r.sort_order });
@@ -127,6 +131,7 @@ export async function initStore() {
 
   state.content = mapContent(content.data);
   state.rooms = rooms.data.map((r) => r.number);
+  state.roomSettings = Object.fromEntries(rooms.data.map((r) => [r.number, { idleMode: r.idle_mode || "postcard" }]));
   state.menuCategories = menuCategories.data.map(mapMenuCategory);
   state.menu = menu.data.map(mapMenuItem);
   state.housekeepingOptions = housekeepingOptions.data.map(mapHousekeeping);
@@ -168,8 +173,13 @@ function subscribeRealtime() {
       notify();
     })
     .on("postgres_changes", { event: "*", schema: "public", table: "rooms" }, (p) => {
-      if (p.eventType === "DELETE") state.rooms = state.rooms.filter((n) => n !== p.old.number);
-      else if (!state.rooms.includes(p.new.number)) state.rooms.push(p.new.number);
+      if (p.eventType === "DELETE") {
+        state.rooms = state.rooms.filter((n) => n !== p.old.number);
+        delete state.roomSettings[p.old.number];
+      } else {
+        if (!state.rooms.includes(p.new.number)) state.rooms.push(p.new.number);
+        state.roomSettings[p.new.number] = { idleMode: p.new.idle_mode || "postcard" };
+      }
       notify();
     })
     .on("postgres_changes", { event: "*", schema: "public", table: "menu_categories" }, (p) => {
@@ -319,6 +329,10 @@ export function applyRoomFromUrl() {
 export function getRooms() {
   return state.rooms;
 }
+// Which idle/start screen a room's tablet defaults to — see js/views/idle.js.
+export function getIdleMode(room) {
+  return state.roomSettings[room]?.idleMode || "postcard";
+}
 export function getLang() {
   return localStorage.getItem(LANG_KEY) || "de";
 }
@@ -379,20 +393,6 @@ export async function clearPostcards() {
   }
 }
 
-// Which postcards a guest device has already acknowledged — per-device, not synced.
-export function getDismissedPostcards() {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(DISMISSED_POSTCARDS_KEY) || "[]"));
-  } catch {
-    return new Set();
-  }
-}
-export function dismissPostcard(id) {
-  const set = getDismissedPostcards();
-  set.add(id);
-  localStorage.setItem(DISMISSED_POSTCARDS_KEY, JSON.stringify([...set]));
-}
-
 // ---------- booking (current stay per villa) ----------
 export function getBooking(room) {
   return state.bookings.find((b) => b.room === room) || null;
@@ -402,6 +402,11 @@ export function getBooking(room) {
 export async function updateBookingRow(room, patch) {
   const { error } = await supabase.from("bookings").update(patch).eq("room", room);
   if (error) console.error("updateBookingRow failed", error);
+}
+// rooms.number (not id) is the primary key, same reasoning as updateBookingRow.
+export async function updateRoomRow(number, patch) {
+  const { error } = await supabase.from("rooms").update(patch).eq("number", number);
+  if (error) console.error("updateRoomRow failed", error);
 }
 
 // ---------- services catalog ----------

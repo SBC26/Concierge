@@ -455,10 +455,16 @@ hr.sep { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
 .sheet-head h3 { font-size: 19px; color: var(--sbc-gold-bright); }
 .icon-btn { border: none; background: var(--sbc-wattblau-soft); color: var(--sbc-sand); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; }
 
-/* ---------- Postcard overlay ----------
-   Shared markup (util.js postcardHTML()) and frame image with the admin
-   compose-preview, so the guest takeover and the staff preview always match
-   pixel-for-pixel — the frame itself is the client's real brand asset
+/* ---------- Idle / start screen (js/views/idle.js) ----------
+   The tablet's resting state — shown on load and restored after 2 minutes of
+   inactivity (see app.js). Two modes, chosen per room in the backoffice: the
+   postcard screen below, or the Fallblattanzeige split-flap board further down. */
+.idle-screen { flex: 1; min-height: 0; display: flex; flex-direction: column; cursor: pointer; }
+.idle-hint { text-align: center; font-size: 11px; letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--sbc-copper); opacity: 0.8; }
+
+/* Postcard idle screen — shared markup (util.js postcardHTML()) and frame
+   image with the admin compose-preview, so the two always match pixel-for-
+   pixel — the frame itself is the client's real brand asset
    (assets/postcard-frame.png), not a hand-drawn CSS approximation. */
 main.postcard-takeover { padding: 20px; flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 20px; min-height: 0; }
 /* .postcard-wrap is capped to the same width as .postcard (instead of being a
@@ -475,6 +481,30 @@ main.postcard-takeover { padding: 20px; flex: 1; display: flex; flex-direction: 
 .postcard-message { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--sbc-sand); font-size: clamp(18px, 4vw, 30px); line-height: 1.55; white-space: pre-wrap; word-break: break-word; overflow-y: auto; }
 .postcard-message.placeholder { color: rgba(233, 223, 209, 0.5); font-family: "Montserrat", sans-serif !important; font-size: 15px; }
 .postcard-footer { font-size: 10px; letter-spacing: var(--tracking-wide); text-transform: uppercase; color: rgba(233, 223, 209, 0.45); border-top: 1px dashed rgba(201, 169, 114, 0.25); padding-top: 10px; margin-top: 8px; text-align: center; flex-shrink: 0; }
+
+/* Fallblattanzeige idle screen — split-flap ("Solari board") welcome display.
+   Each cell is a physical-metaphor flip: static top/bottom halves (each
+   overflow:hidden, showing the top or bottom 50% of an oversized glyph) form
+   the resting character, with a third "flap" layer folded via 2D scaleY
+   (deliberately not a 3D rotateX/backface-visibility flip — see js/views/idle.js). */
+main.fb-idle { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 20px 12px; }
+.fb-stage { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.fb-rule { height: 1px; width: 64px; background: var(--sbc-gold); margin: 0 auto; flex-shrink: 0; }
+.fb-rows { display: flex; flex-direction: column; gap: 6px; margin: 14px 0; }
+.fb-row { display: flex; gap: 6px; justify-content: center; }
+.fb-cell { position: relative; width: 64px; height: 118px; flex-shrink: 0; }
+.fb-cell-half { position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: var(--sbc-wattblau-soft); border: 1px solid var(--line); }
+.fb-cell-top { top: 0; border-bottom: none; border-radius: var(--radius-xs) var(--radius-xs) 0 0; }
+.fb-cell-bottom { bottom: 0; border-top: none; border-radius: 0 0 var(--radius-xs) var(--radius-xs); }
+.fb-cell-glyph { position: absolute; top: 0; left: 0; width: 100%; height: 118px; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 55px; color: var(--sbc-gold-bright); }
+.fb-cell-bottom .fb-cell-glyph { top: -59px; }
+.fb-cell-flap { position: absolute; top: 0; left: 0; width: 100%; height: 50%; overflow: hidden; transform-origin: bottom; background: var(--sbc-wattblau-soft); border: 1px solid var(--line); border-bottom: none; border-radius: var(--radius-xs) var(--radius-xs) 0 0; }
+.fb-cell-seam { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(23, 45, 59, 0.6); z-index: 5; }
+@media (max-width: 480px) {
+  .fb-cell { width: 40px; height: 74px; }
+  .fb-cell-glyph { height: 74px; font-size: 34px; }
+  .fb-cell-bottom .fb-cell-glyph { top: -37px; }
+}
 
 /* ---------- Room setup / re-assignment screen (unchanged structure) ---------- */
 .setup-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--sbc-wattblau-deep); }
