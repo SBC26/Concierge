@@ -524,6 +524,18 @@ function viewPostcard() {
           )
           .join("")}
       </div>
+      ${
+        pcRoom !== "all" && getIdleMode(pcRoom) !== pcChannel
+          ? `<div style="margin-top:14px;padding:12px 14px;border:1px solid #a34a3a;border-radius:8px;background:rgba(163,74,58,0.1);">
+              <p style="color:#a34a3a;font-size:13px;line-height:1.5;">
+                Hinweis: ${escapeHtml(pcRoom)} zeigt als Startseite aktuell „${getIdleMode(pcRoom) === "fallblatt" ? "Fallblattanzeige" : "Postkarte"}" — diese Mitteilung erscheint dort erst, wenn du die Startseite umstellst.
+              </p>
+              <button class="translate-btn" data-action="set-idle-mode" data-room="${escapeHtml(pcRoom)}" data-mode="${pcChannel}" style="margin-top:8px;">
+                ${icon("check", { size: 12 })} Startseite von ${escapeHtml(pcRoom)} auf „${isFallblatt ? "Fallblattanzeige" : "Postkarte"}" umstellen
+              </button>
+            </div>`
+          : ""
+      }
     </div>
 
     <div class="editor-section">

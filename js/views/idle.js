@@ -77,9 +77,12 @@ export function idlePostcardHTML({ lang, room }) {
   const dateStr = new Date(createdAt).toLocaleDateString(lang === "de" ? "de-CH" : lang === "th" ? "th-TH" : "en-GB", {
     day: "2-digit", month: "long", year: "numeric",
   });
+  // No extra "Villa" label here — every room name in this property already
+  // starts with it (Villa Jungfrau, Villa Rigi, …), so prefixing the generic
+  // label would read as "Villa Villa Rigi".
   const footerHtml = pending?.footer
     ? escapeHtml(pending.footer)
-    : `${escapeHtml(t("postcardFrom", lang))} ${escapeHtml(t("hotelName", lang))} · ${escapeHtml(t("room", lang))} ${escapeHtml(room)} · ${dateStr}`;
+    : `${escapeHtml(t("postcardFrom", lang))} ${escapeHtml(t("hotelName", lang))} · ${escapeHtml(room)} · ${dateStr}`;
 
   return `
     <div class="idle-screen" data-action="idle-enter">
