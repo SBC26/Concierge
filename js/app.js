@@ -45,7 +45,7 @@ function toast(msg) {
 function getPendingPostcard() {
   const dismissed = getDismissedPostcards();
   const candidates = postcardsForRoom(room)
-    .filter((p) => !dismissed.has(p.id))
+    .filter((p) => p.channel !== "fallblatt" && !dismissed.has(p.id))
     .sort((a, b) => b.createdAt - a.createdAt);
   return candidates[0] || null;
 }

@@ -134,6 +134,7 @@ onNewRequest((item) => {
 });
 
 // postcard-compose state
+let pcChannel = "postcard"; // "postcard" (guest tablet takeover) | "fallblatt" (lobby split-flap display)
 let pcRoom = "all";
 let pcFont = FONT_OPTIONS[0].id;
 let pcText = "";
@@ -312,7 +313,7 @@ function sidebar() {
   const canStaff = canManageStaff();
   const items = [
     { id: "dashboard", icon: "clipboardList", label: "Anfragen" },
-    ...(fullAccess ? [{ id: "postcard", icon: "mail", label: "Postkarte senden" }] : []),
+    ...(fullAccess ? [{ id: "postcard", icon: "mail", label: "Mitteilung senden" }] : []),
   ];
   const contentItems = [
     { id: "info", icon: "conciergeBell", label: "Hotel-Infos" },
@@ -450,13 +451,52 @@ function defaultPcFooter() {
   return `Mit herzlichen Grüssen aus dem Swiss Baan Chiang · ${recipientLabel} · ${fmtDate(Date.now())}`;
 }
 
+// Preview-only word-wrap mirroring fallblatt.js's wrapMessage() (16 chars ×
+// 4 lines) — duplicated rather than imported since it's purely cosmetic here
+// (the backoffice never renders the actual board), kept in sync by hand.
+function wrapForPreview(text, lineLen = 16, maxLines = 4) {
+  const words = (text || "").toUpperCase().trim().split(/\s+/).filter(Boolean).map((w) => (w.length > lineLen ? w.slice(0, lineLen) : w));
+  const lines = [];
+  let cur = "";
+  for (const word of words) {
+    const next = cur ? `${cur} ${word}` : word;
+    if (next.length <= lineLen) cur = next;
+    else {
+      lines.push(cur);
+      cur = word;
+      if (lines.length >= maxLines) return lines.slice(0, maxLines);
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines.slice(0, maxLines);
+}
+
+const PC_CHANNELS = [
+  { id: "postcard", icon: "mail", label: "Postkarte", hint: "Postkarte — als Vollbild-Gruss auf dem Zimmer-Tablet des Gasts." },
+  { id: "fallblatt", icon: "monitor", label: "Fallblattanzeige", hint: "Fallblattanzeige — wird in die Anzeige beim Villeneingang eingewoben (max. 4 Zeilen à 16 Zeichen)." },
+];
+
 function viewPostcard() {
   const s = getState();
   const sent = [...s.postcards].sort((a, b) => b.createdAt - a.createdAt).slice(0, 8);
   const recipientLabel = pcRoom === "all" ? "Alle Zimmer" : "Zimmer " + pcRoom;
+  const isFallblatt = pcChannel === "fallblatt";
   if (pcFooter === null) pcFooter = defaultPcFooter();
   return `
-    ${topHeader("Postkarte senden", "Eine persönliche Grussbotschaft direkt aufs Gästegerät schicken")}
+    ${topHeader("Mitteilung senden", "Eine Nachricht an die Postkarte oder die Fallblattanzeige im Eingang schicken")}
+
+    <div class="editor-section">
+      <h3>Kanal</h3>
+      <div class="font-swatches">
+        ${PC_CHANNELS.map(
+          (c) => `
+          <button class="font-swatch ${pcChannel === c.id ? "active" : ""}" data-action="pc-set-channel" data-channel="${c.id}" style="min-width:150px;">
+            <div class="sample" style="display:flex;justify-content:center;color:var(--copper);">${icon(c.icon, { size: 18 })}</div><div class="label">${c.label}</div>
+          </button>`
+        ).join("")}
+      </div>
+      <p class="rules-hint">${PC_CHANNELS.find((c) => c.id === pcChannel).hint}</p>
+    </div>
 
     <div class="editor-section">
       <h3>Empfänger</h3>
@@ -477,15 +517,22 @@ function viewPostcard() {
 
     <div class="editor-section">
       <h3>Vorschau &amp; Nachricht</h3>
-      ${postcardHTML({
-        idPrefix: "pc",
-        message: pcText,
-        fontId: pcFont,
-        placeholder: "So erscheint deine Postkarte auf dem Gästegerät …",
-        footerHtml: escapeHtml(pcFooter),
-      })}
+      ${
+        isFallblatt
+          ? `<div id="pc-fb-preview" style="background:var(--sbc-wattblau-deep);border:1px solid var(--line);border-radius:8px;padding:18px;font-family:var(--font-display);font-size:20px;letter-spacing:0.04em;color:var(--sbc-gold-bright);text-align:center;line-height:1.9;white-space:pre;">${escapeHtml(wrapForPreview(pcText).join("\n") || "So erscheint deine Mitteilung auf der Fallblattanzeige …")}</div>`
+          : postcardHTML({
+              idPrefix: "pc",
+              message: pcText,
+              fontId: pcFont,
+              placeholder: "So erscheint deine Postkarte auf dem Gästegerät …",
+              footerHtml: escapeHtml(pcFooter),
+            })
+      }
 
-      <div class="plain-field" style="margin-top:16px;"><label>Schriftart</label></div>
+      ${
+        isFallblatt
+          ? ""
+          : `<div class="plain-field" style="margin-top:16px;"><label>Schriftart</label></div>
       <div class="font-swatches">
         ${FONT_OPTIONS.map(
           (f) => `
@@ -494,18 +541,23 @@ function viewPostcard() {
             <div class="label">${f.label}</div>
           </button>`
         ).join("")}
-      </div>
+      </div>`
+      }
 
-      <textarea id="pc-text" rows="4" placeholder="Nachricht eingeben …" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:11px 13px;font-size:14px;font-family:inherit;"></textarea>
+      <textarea id="pc-text" rows="4" placeholder="${isFallblatt ? "Mitteilung eingeben … (max. 4 Zeilen à 16 Zeichen)" : "Nachricht eingeben …"}" style="width:100%;margin-top:16px;border:1px solid var(--line);border-radius:8px;padding:11px 13px;font-size:14px;font-family:inherit;"></textarea>
 
-      <div class="ml-label-row" style="margin-top:14px;">
+      ${
+        isFallblatt
+          ? ""
+          : `<div class="ml-label-row" style="margin-top:14px;">
         <label>Grusszeile (Fusszeile der Postkarte)</label>
         <button class="translate-btn" data-action="pc-save-footer">${icon("check", { size: 12 })} Als Standard speichern</button>
       </div>
       <input id="pc-footer-input" placeholder="Mit herzlichen Grüssen …" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:10px 13px;font-size:13px;font-family:inherit;" />
-      <p class="rules-hint">Wird ab sofort als Vorschlag für jede neue Postkarte verwendet, bis du sie erneut speicherst.</p>
+      <p class="rules-hint">Wird ab sofort als Vorschlag für jede neue Postkarte verwendet, bis du sie erneut speicherst.</p>`
+      }
 
-      <button class="pill-btn full gold" id="pc-send-btn" data-action="pc-send" ${pcText.trim() ? "" : "disabled"} style="margin-top:14px;">Postkarte an ${escapeHtml(recipientLabel)} senden</button>
+      <button class="pill-btn full gold" id="pc-send-btn" data-action="pc-send" ${pcText.trim() ? "" : "disabled"} style="margin-top:14px;">${isFallblatt ? "Mitteilung" : "Postkarte"} an ${escapeHtml(recipientLabel)} senden</button>
     </div>
 
     <div class="editor-section">
@@ -519,7 +571,7 @@ function viewPostcard() {
       </div>
       ${
         sent.length === 0
-          ? `<p class="muted" style="font-size:13px;">Noch keine Postkarte gesendet.</p>`
+          ? `<p class="muted" style="font-size:13px;">Noch keine Mitteilung gesendet.</p>`
           : sent
               .map(
                 (p) => `
@@ -527,6 +579,7 @@ function viewPostcard() {
             <div class="row-between">
               <span class="room-tag">${p.room === "all" ? "Alle Zimmer" : "Zi. " + escapeHtml(p.room)}</span>
               <div style="display:flex;align-items:center;gap:8px;">
+                <span class="type-tag">${p.channel === "fallblatt" ? icon("monitor", { size: 12 }) + " Fallblatt" : icon("mail", { size: 12 }) + " Postkarte"}</span>
                 <span class="type-tag">${fmtTime(p.createdAt)}</span>
                 <button class="remove-btn" data-action="pc-delete" data-id="${p.id}" title="Löschen / Rückgängig machen">${icon("x", { size: 13 })}</button>
               </div>
@@ -540,11 +593,18 @@ function viewPostcard() {
 }
 
 function updatePcPreview() {
-  const msg = document.getElementById("pc-message");
-  const foot = document.getElementById("pc-footer");
-  const btn = document.getElementById("pc-send-btn");
-  if (!msg) return;
   const trimmed = pcText.trim();
+  const btn = document.getElementById("pc-send-btn");
+  if (btn) btn.disabled = !trimmed;
+
+  const fbPreview = document.getElementById("pc-fb-preview");
+  if (fbPreview) {
+    fbPreview.textContent = wrapForPreview(pcText).join("\n") || "So erscheint deine Mitteilung auf der Fallblattanzeige …";
+    return;
+  }
+
+  const msg = document.getElementById("pc-message");
+  if (!msg) return;
   if (trimmed) {
     msg.textContent = pcText;
     msg.classList.remove("placeholder");
@@ -553,8 +613,8 @@ function updatePcPreview() {
     msg.textContent = "So erscheint deine Postkarte auf dem Gästegerät …";
     msg.classList.add("placeholder");
   }
+  const foot = document.getElementById("pc-footer");
   if (foot) foot.textContent = pcFooter;
-  if (btn) btn.disabled = !trimmed;
 }
 
 function hydratePostcardPage() {
@@ -1122,6 +1182,10 @@ root.addEventListener("click", async (e) => {
     getState().content.localTips.splice(idx, 1);
     return commitLocalTips();
   }
+  if (action === "pc-set-channel") {
+    pcChannel = t.dataset.channel;
+    return render();
+  }
   if (action === "pc-set-room") {
     pcRoom = t.dataset.room;
     pcFooter = defaultPcFooter();
@@ -1134,7 +1198,7 @@ root.addEventListener("click", async (e) => {
   if (action === "pc-send") {
     const trimmed = pcText.trim();
     if (!trimmed) return;
-    await addPostcard({ room: pcRoom, text: trimmed, font: pcFont, footer: pcFooter.trim() });
+    await addPostcard({ room: pcRoom, text: trimmed, channel: pcChannel, font: pcFont, footer: pcFooter.trim() });
     pcText = "";
     pcFooter = defaultPcFooter();
     flash = true;

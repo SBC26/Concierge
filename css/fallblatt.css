@@ -1,0 +1,84 @@
+/* Fallblattanzeige — tablet welcome display (split-flap "Solari" board), a
+   standalone kiosk page separate from the guest concierge app. Reuses
+   css/style.css's --sbc-* design tokens; --shadow-card is scoped to .fb-frame
+   only since the rest of the app deliberately has no shadows (flat design) —
+   this one "framed sign" screen is the documented exception. */
+
+.fb-stage {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background: var(--sbc-wattblau-deep);
+  overflow: auto;
+}
+
+.fb-frame {
+  --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.22), 0 18px 40px rgba(0, 0, 0, 0.28);
+  flex-shrink: 0;
+  width: 1133px;
+  height: 744px;
+  background: var(--sbc-wattblau-deep);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.fb-header,
+.fb-footer {
+  padding: 22px 48px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.fb-footer { padding: 16px 48px 22px; border-bottom: none; border-top: 1px solid var(--line); }
+
+.fb-header-brand { display: flex; align-items: center; gap: 16px; }
+.fb-header-brand img { width: 32px; height: auto; display: block; }
+.fb-villa-label { font-family: var(--font-display); font-size: 20px; letter-spacing: var(--tracking-display); color: var(--sbc-gold-bright); }
+.fb-weather { font-family: var(--font-sub); font-weight: 500; font-size: 12px; letter-spacing: var(--tracking-wide); color: var(--sbc-copper); }
+.fb-footer div { font-size: 13px; color: var(--sbc-copper); }
+
+.fb-board-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+.fb-rows { display: flex; flex-direction: column; gap: 6px; }
+.fb-rule { height: 1px; width: 64px; background: var(--sbc-gold); flex-shrink: 0; }
+.fb-row { display: flex; gap: 6px; }
+
+.fb-cell { position: relative; width: 64px; height: 118px; flex-shrink: 0; }
+.fb-cell-half {
+  position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden;
+  background: var(--sbc-wattblau-soft); border: 1px solid var(--line);
+}
+.fb-cell-top { top: 0; border-bottom: none; border-radius: var(--radius-xs) var(--radius-xs) 0 0; }
+.fb-cell-bottom { bottom: 0; border-top: none; border-radius: 0 0 var(--radius-xs) var(--radius-xs); }
+.fb-cell-glyph {
+  position: absolute; top: 0; left: 0; width: 100%; height: 118px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-size: 55px; color: var(--sbc-gold-bright);
+}
+.fb-cell-bottom .fb-cell-glyph { top: -59px; }
+.fb-cell-flap {
+  position: absolute; top: 0; left: 0; width: 100%; height: 50%; overflow: hidden;
+  transform-origin: bottom; background: var(--sbc-wattblau-soft);
+  border: 1px solid var(--line); border-bottom: none; border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+}
+.fb-cell-seam { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(23, 45, 59, 0.6); z-index: 5; }
+
+@media (max-width: 1213px) {
+  .fb-stage { padding: 20px; }
+}

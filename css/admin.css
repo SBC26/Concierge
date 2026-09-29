@@ -1,7 +1,7 @@
 /*
   Backoffice stylesheet — fully restyled onto the Villa Concierge design
   system, matching the guest app's dark mode 1:1 (same wattblau/gold palette,
-  Fiona/Montserrat type, flat hairline surfaces, no shadows) rather than a
+  Corporative/Montserrat type, flat hairline surfaces, no shadows) rather than a
   separate light "working surface" — the user asked for the backoffice to
   look completely dark like the guest app, not just brand-token-aligned.
 
@@ -25,7 +25,7 @@
   --sbc-clay: #8b6852;
   --sbc-ink: #1c1c1c;
   --sbc-stone: #6b6b6b;
-  --font-display: "Fiona", "Italiana", "Marcellus", "Cormorant Garamond", serif;
+  --font-display: "Corporative", "Italiana", "Marcellus", "Cormorant Garamond", serif;
   --font-sub: "Montserrat", "Helvetica Neue", Arial, sans-serif;
   --tracking-wide: 0.16em;
   --tracking-display: 0.02em;
