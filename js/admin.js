@@ -370,6 +370,32 @@ async function handleSetPriceMode(si, mode) {
   await updateRow("services", row.id, { price_on_request: row.priceOnRequest, from_price: row.fromPrice });
 }
 
+// A brand-new service starts with optionGroups: [] — until now there was no
+// way to add the first one, so a freshly created service had no way to ask
+// the guest for anything beyond what's already on the card (name/price).
+function handleAddOptionGroup(si) {
+  const s = getState();
+  const service = s.services[si];
+  if (!service) return;
+  service.optionGroups = service.optionGroups || [];
+  service.optionGroups.push({
+    key: `feld${service.optionGroups.length + 1}`,
+    type: "text",
+    label: { de: "Neues Feld", en: "New field", th: "ฟิลด์ใหม่" },
+    options: [],
+  });
+  return commitServiceOptionGroups(si);
+}
+
+function handleRemoveOptionGroup(si, gi) {
+  const s = getState();
+  const group = s.services[si]?.optionGroups[gi];
+  if (!group) return;
+  if (!confirm(`Feld „${group.key}" wirklich löschen?`)) return;
+  s.services[si].optionGroups.splice(gi, 1);
+  return commitServiceOptionGroups(si);
+}
+
 function fmtTime(ts) {
   const d = new Date(ts);
   return d.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
@@ -460,6 +486,18 @@ const PRICE_MODES = [
   { id: "price", icon: "banknote", label: "Preis" },
   { id: "inclusive", icon: "check", label: "Inklusive" },
   { id: "onRequest", icon: "circleHelp", label: "Auf Anfrage" },
+];
+// The set of option-group types js/views/shared.js's renderOptionGroup() /
+// serviceDetail.js actually know how to render and collect a value for —
+// keep in sync with that if a new type is ever added there.
+const GROUP_TYPES = [
+  { id: "text", label: "Text" },
+  { id: "segmented", label: "Auswahl (Buttons)" },
+  { id: "choice-list", label: "Auswahl-Liste" },
+  { id: "stepper", label: "Zähler (+/-)" },
+  { id: "date", label: "Datum" },
+  { id: "time", label: "Uhrzeit" },
+  { id: "datetime", label: "Datum & Uhrzeit" },
 ];
 
 const ROLE_DASHBOARD_TITLE = {
@@ -966,7 +1004,11 @@ function serviceCard(sv, si, expanded) {
           </div>
           <div class="field-mini"><label>Preiseinheit (optional, z. B. „Tag")</label><input value="${escapeAttr(sv.priceUnit || "")}" data-bind="services.${si}.priceUnit" /></div>
         </div>` : ""}
+        <div class="plain-field" style="margin-top:6px;">
+          <label>Felder (was der Gast ausfüllt)</label>
+        </div>
         ${sv.optionGroups.map((g, gi) => optionGroupEditor(sv, si, g, gi)).join("")}
+        <button class="add-btn" data-action="add-group" data-si="${si}">+ Feld hinzufügen</button>
       </div>` : ""}
     </div>`;
 }
@@ -975,8 +1017,32 @@ function optionGroupEditor(service, si, group, gi) {
   const hasOptions = group.type === "segmented" || group.type === "choice-list";
   return `
     <div class="item-editor-row" style="background:rgba(191,166,114,0.06);">
-      <div class="row-top"><span class="muted">Gruppe „${escapeHtml(group.key)}" (${escapeHtml(group.type)})</span></div>
+      <div class="row-top">
+        <span class="muted">Feld ${gi + 1}</span>
+        <button class="remove-btn" data-action="remove-group" data-si="${si}" data-gi="${gi}" title="Feld löschen">${icon("x", { size: 13 })}</button>
+      </div>
+      <div class="num-row">
+        <div class="field-mini">
+          <label>Schlüssel</label>
+          <input value="${escapeAttr(group.key)}" data-bind="services.${si}.optionGroups.${gi}.key" />
+        </div>
+        <div class="field-mini">
+          <label>Typ</label>
+          <select data-bind="services.${si}.optionGroups.${gi}.type">
+            ${GROUP_TYPES.map((gt) => `<option value="${gt.id}" ${group.type === gt.id ? "selected" : ""}>${escapeHtml(gt.label)}</option>`).join("")}
+          </select>
+        </div>
+      </div>
+      <p class="rules-hint" style="margin-top:4px;">Schlüssel ist ein interner Bezeichner (z. B. „richtung"), für Gäste nicht sichtbar.</p>
       ${triLang("Feldbezeichnung", `services.${si}.optionGroups.${gi}.label`)}
+      ${group.type === "text" ? `
+      <div class="plain-field">
+        <label>Eingabeart</label>
+        <div class="font-swatches">
+          <button class="font-swatch ${!group.multiline ? "active" : ""}" data-action="set-group-multiline" data-si="${si}" data-gi="${gi}" data-value="false"><div class="label">Einzeilig</div></button>
+          <button class="font-swatch ${group.multiline ? "active" : ""}" data-action="set-group-multiline" data-si="${si}" data-gi="${gi}" data-value="true"><div class="label">Mehrzeilig</div></button>
+        </div>
+      </div>` : ""}
       ${
         hasOptions
           ? `
@@ -1376,6 +1442,20 @@ root.addEventListener("click", async (e) => {
   }
   if (action === "set-price-mode") {
     return handleSetPriceMode(Number(t.dataset.si), t.dataset.mode);
+  }
+  if (action === "add-group") {
+    return handleAddOptionGroup(Number(t.dataset.si));
+  }
+  if (action === "remove-group") {
+    return handleRemoveOptionGroup(Number(t.dataset.si), Number(t.dataset.gi));
+  }
+  if (action === "set-group-multiline") {
+    const si = Number(t.dataset.si);
+    const gi = Number(t.dataset.gi);
+    const group = getState().services[si]?.optionGroups[gi];
+    if (!group) return;
+    group.multiline = t.dataset.value === "true";
+    return commitServiceOptionGroups(si);
   }
   if (action === "add-tip") {
     getState().content.localTips.push(BLANK_TIP());
