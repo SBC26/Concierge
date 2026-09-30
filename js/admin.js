@@ -148,6 +148,11 @@ let pcFooter = null; // null = not yet initialized; lazily set to defaultPcFoote
 // services-editor state: which cards are open, by service id (not index —
 // indices shift on add/remove, ids don't).
 let expandedServices = new Set();
+// Same collapsed-by-default accordion pattern for Hotel-Infos (section id)
+// and Buchungen (room name, stable across realtime re-fetches — unlike an
+// array index) — both pages were a long wall of always-open fields.
+let expandedInfoSections = new Set();
+let expandedBookings = new Set();
 
 // staff-management state
 const ROLE_OPTIONS = [
@@ -858,31 +863,48 @@ function escapeAttr(v) {
   return String(v).replace(/"/g, "&quot;");
 }
 
+// Collapsed-by-default accordion, same pattern and CSS classes as the
+// Services editor (serviceCard()) — Hotel-Infos was six always-open sections
+// (WLAN, Concierge/Notfall, Öffnungszeiten, Willkommenstext, Hausregeln,
+// Ausflugstipps) stacked on one page, most of which staff only ever glance
+// at or touch once. Reusing .service-card* here isn't service-specific
+// styling, it's just this admin's one accordion-card look.
+function infoSectionCard(id, iconName, title, summary, bodyHtml) {
+  const expanded = expandedInfoSections.has(id);
+  return `
+    <div class="editor-section service-card ${expanded ? "expanded" : ""}">
+      <div class="service-card-header" data-action="toggle-info-section" data-id="${id}">
+        <span class="service-card-icon">${icon(iconName, { size: 16 })}</span>
+        <span class="service-card-name">${escapeHtml(title)}</span>
+        ${summary ? `<span class="service-card-price">${escapeHtml(summary)}</span>` : ""}
+        <span class="service-card-chevron">${icon("chevronDown", { size: 16 })}</span>
+      </div>
+      ${expanded ? `<div class="service-card-body">${bodyHtml}</div>` : ""}
+    </div>`;
+}
+
 function viewInfo() {
   const c = getState().content;
+  const ruleCount = ["de", "en", "th"].reduce((n, code) => n + (c.rules[code]?.length || 0), 0);
   return `
     ${topHeader("Hotel-Infos", "Diese Angaben sehen Gäste unter „Hotelinfo“")}
-    <div class="editor-section">
-      <h3>WLAN &amp; Rezeption</h3>
+    ${infoSectionCard("wifi", "wifi", "WLAN & Rezeption", c.wifiSsid, `
       <div class="editor-grid">
         <div class="plain-field"><label>WLAN-Netzwerk</label><input value="${escapeAttr(c.wifiSsid)}" data-bind="content.wifiSsid" /></div>
         <div class="plain-field"><label>WLAN-Passwort</label><input value="${escapeAttr(c.wifiPassword)}" data-bind="content.wifiPassword" /></div>
         <div class="plain-field"><label>Rezeption Telefon</label><input value="${escapeAttr(c.receptionPhone)}" data-bind="content.receptionPhone" /></div>
       </div>
-    </div>
-
-    <div class="editor-section">
-      <h3>Concierge &amp; Notfall <span class="rules-hint">(für „Direkt schreiben" und „Im Notfall" im Gäste-Portal)</span></h3>
+    `)}
+    ${infoSectionCard("concierge", "phoneCall", "Concierge & Notfall", c.conciergeName, `
+      <p class="rules-hint" style="margin-top:-6px;margin-bottom:10px;">Für „Direkt schreiben" und „Im Notfall" im Gäste-Portal.</p>
       <div class="editor-grid">
         <div class="plain-field"><label>Concierge-Name</label><input value="${escapeAttr(c.conciergeName)}" data-bind="content.conciergeName" /></div>
         <div class="plain-field"><label>Concierge WhatsApp-Nummer</label><input value="${escapeAttr(c.conciergePhone)}" data-bind="content.conciergePhone" placeholder="+66812345678" /></div>
         <div class="plain-field"><label>Spital (Name &amp; Distanz)</label><input value="${escapeAttr(c.emergencyHospital)}" data-bind="content.emergencyHospital" /></div>
         <div class="plain-field"><label>Notrufnummer</label><input value="${escapeAttr(c.emergencyNumber)}" data-bind="content.emergencyNumber" /></div>
       </div>
-    </div>
-
-    <div class="editor-section">
-      <h3>Öffnungszeiten</h3>
+    `)}
+    ${infoSectionCard("hours", "clock", "Öffnungszeiten", "", `
       <div class="editor-grid cols-3">
         <div class="plain-field"><label>Frühstück</label><input value="${escapeAttr(c.breakfastHours)}" data-bind="content.breakfastHours" /></div>
         <div class="plain-field"><label>Restaurant</label><input value="${escapeAttr(c.restaurantHours)}" data-bind="content.restaurantHours" /></div>
@@ -890,15 +912,10 @@ function viewInfo() {
         <div class="plain-field"><label>Check-in</label><input value="${escapeAttr(c.checkin)}" data-bind="content.checkin" /></div>
         <div class="plain-field"><label>Check-out</label><input value="${escapeAttr(c.checkout)}" data-bind="content.checkout" /></div>
       </div>
-    </div>
-
-    <div class="editor-section">
-      <h3>Willkommenstext</h3>
-      ${triLang("", "content.welcome", true)}
-    </div>
-
-    <div class="editor-section">
-      <h3>Hausregeln <span class="rules-hint">(eine Regel pro Zeile)</span></h3>
+    `)}
+    ${infoSectionCard("welcome", "mail", "Willkommenstext", "", triLang("", "content.welcome", true))}
+    ${infoSectionCard("rules", "scrollText", "Hausregeln", ruleCount ? `${ruleCount} Regeln` : "", `
+      <p class="rules-hint" style="margin-top:-6px;margin-bottom:10px;">Eine Regel pro Zeile.</p>
       <div class="editor-grid cols-3">
         ${["de", "en", "th"]
           .map((code) => {
@@ -907,10 +924,8 @@ function viewInfo() {
           })
           .join("")}
       </div>
-    </div>
-
-    <div class="editor-section">
-      <h3>Ausflugstipps</h3>
+    `)}
+    ${infoSectionCard("tips", "mapPin", "Ausflugstipps", c.localTips.length ? `${c.localTips.length} Tipps` : "", `
       ${c.localTips
         .map(
           (tip, i) => `
@@ -919,7 +934,7 @@ function viewInfo() {
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="color:var(--copper);display:flex;">${icon(tip.icon, { size: 18 })}</span>
               <select data-bind="content.localTips.${i}.icon" style="border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:12px;">
-                ${TIP_ICON_CHOICES.map((c) => `<option value="${c.id}" ${c.id === tip.icon ? "selected" : ""}>${c.label}</option>`).join("")}
+                ${TIP_ICON_CHOICES.map((tc) => `<option value="${tc.id}" ${tc.id === tip.icon ? "selected" : ""}>${tc.label}</option>`).join("")}
               </select>
             </div>
             <button class="remove-btn" data-action="remove-tip" data-index="${i}">${icon("x", { size: 13 })}</button>
@@ -935,7 +950,7 @@ function viewInfo() {
         )
         .join("")}
       <button class="add-btn" data-action="add-tip">+ Tipp hinzufügen</button>
-    </div>
+    `)}
   `;
 }
 
@@ -1112,15 +1127,29 @@ function optionGroupEditor(service, si, group, gi) {
 }
 
 // ---------- BOOKINGS EDITOR (current stay per villa) ----------
-function viewBookings() {
-  const s = getState();
+function fmtBookingRange(b) {
+  if (!b.arrival || !b.departure) return "";
+  const short = (d) => {
+    const [y, m, day] = d.split("-");
+    return `${day}.${m}.`;
+  };
+  return `${short(b.arrival)}–${short(b.departure)}`;
+}
+
+// Same collapsed-by-default accordion as Services/Hotel-Infos — five villas
+// each with ~15 fields was a very long page to scroll past just to find one.
+function bookingCard(b, i, expanded) {
+  const summary = [b.guestName, fmtBookingRange(b)].filter(Boolean).join(" · ");
   return `
-    ${topHeader("Buchungen", "Die aktuelle Buchung je Villa — das sehen Gäste unter „Deine Buchung“")}
-    ${s.bookings
-      .map(
-        (b, i) => `
-      <div class="editor-section">
-        <h3>${escapeHtml(b.room)}</h3>
+    <div class="editor-section service-card ${expanded ? "expanded" : ""}">
+      <div class="service-card-header" data-action="toggle-booking" data-room="${escapeAttr(b.room)}">
+        <span class="service-card-icon">${icon("bed", { size: 16 })}</span>
+        <span class="service-card-name">${escapeHtml(b.room)}</span>
+        ${summary ? `<span class="service-card-price">${escapeHtml(summary)}</span>` : ""}
+        <span class="service-card-chevron">${icon("chevronDown", { size: 16 })}</span>
+      </div>
+      ${expanded ? `
+      <div class="service-card-body">
         <div class="plain-field">
           <label>Startseite dieses Tablets</label>
           <div class="font-swatches">
@@ -1152,9 +1181,15 @@ function viewBookings() {
           <div class="plain-field"><label>Wetter-Hinweis</label><input value="${escapeAttr(b.weatherNote)}" data-bind="bookings.${i}.weatherNote" placeholder="z. B. Hua Hin · 31° · sonnig" /></div>
         </div>
         <div class="plain-field"><label>Adresse</label><input value="${escapeAttr(b.address)}" data-bind="bookings.${i}.address" /></div>
-      </div>`
-      )
-      .join("")}`;
+      </div>` : ""}
+    </div>`;
+}
+
+function viewBookings() {
+  const s = getState();
+  return `
+    ${topHeader("Buchungen", "Die aktuelle Buchung je Villa — das sehen Gäste unter „Deine Buchung“")}
+    ${s.bookings.map((b, i) => bookingCard(b, i, expandedBookings.has(b.room))).join("")}`;
 }
 
 // ---------- QR CODES ----------
@@ -1467,6 +1502,18 @@ root.addEventListener("click", async (e) => {
     if (!id) return;
     if (expandedServices.has(id)) expandedServices.delete(id);
     else expandedServices.add(id);
+    return render();
+  }
+  if (action === "toggle-info-section") {
+    const id = t.dataset.id;
+    if (expandedInfoSections.has(id)) expandedInfoSections.delete(id);
+    else expandedInfoSections.add(id);
+    return render();
+  }
+  if (action === "toggle-booking") {
+    const room = t.dataset.room;
+    if (expandedBookings.has(room)) expandedBookings.delete(room);
+    else expandedBookings.add(room);
     return render();
   }
   if (action === "set-price-mode") {
