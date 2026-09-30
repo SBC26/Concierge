@@ -99,6 +99,7 @@ const mapBooking = (r) => ({
 export const mapService = (r) => ({
   id: r.id, category: r.category, name: r.name, shortDesc: r.short_desc,
   fromPrice: r.from_price == null ? null : Number(r.from_price), priceUnit: r.price_unit,
+  priceOnRequest: !!r.price_on_request,
   optionGroups: r.option_groups || [], sortOrder: r.sort_order,
 });
 const mapRequest = (r) => ({ id: r.id, requestCode: r.request_code, room: r.room, message: r.message, richtwertTotal: Number(r.richtwert_total || 0), createdAt: ts(r.created_at) });

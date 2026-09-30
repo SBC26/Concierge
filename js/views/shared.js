@@ -44,6 +44,7 @@ export function thb(n) {
 }
 
 export function abPrice(service, lang) {
+  if (service.priceOnRequest) return t("onRequestLabel", lang);
   if (service.fromPrice == null) return t("inclusiveLabel", lang);
   const unit = service.priceUnit ? ` / ${t("perDayUnit", lang)}` : "";
   return `${t("fromPricePrefix", lang)} ${thb(service.fromPrice)}${unit}`;

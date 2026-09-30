@@ -23,6 +23,7 @@ export const UI = {
   perDayUnit: { de: "Tag", en: "day", th: "วัน" },
   servicesUnit: { de: "ab-Preise in THB", en: "from-prices in THB", th: "ราคาเริ่มต้น (THB)" },
   inclusiveLabel: { de: "inklusive", en: "included", th: "รวมในราคา" },
+  onRequestLabel: { de: "auf Anfrage", en: "on request", th: "สอบถามราคา" },
   secNavRules: { de: "Hausregeln & WLAN", en: "House Rules & WiFi", th: "กฎของบ้านและไวไฟ" },
   secNavSurroundings: { de: "Umgebung & Empfehlungen", en: "Surroundings & Tips", th: "รอบบริเวณและคำแนะนำ" },
   secNavRequests: { de: "Meine Anfragen", en: "My Requests", th: "คำขอของฉัน" },

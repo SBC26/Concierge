@@ -192,6 +192,20 @@ button { font-family: inherit; }
 .num-row input, .num-row select { width: 100%; background: var(--sbc-wattblau-soft); border: 1px solid var(--line); color: var(--sbc-sand); border-radius: var(--radius-btn); padding: 7px 9px; font-size: 13px; margin-top: 3px; font-family: inherit; }
 
 .add-btn { border: 1.5px dashed var(--sbc-gold); background: rgba(201,169,114,0.08); color: var(--sbc-gold-bright); border-radius: var(--radius-sm); padding: 12px; width: 100%; font-weight: 700; cursor: pointer; font-size: 13px; }
+
+/* Services editor — collapsed-by-default accordion cards so a catalog of
+   9+ services (each with a full name/desc/price/option-groups form) stays
+   scannable instead of one long wall of open forms. */
+.service-card { padding: 0; overflow: hidden; }
+.service-card-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; cursor: pointer; }
+.service-card-icon { color: var(--copper); display: flex; flex-shrink: 0; }
+.service-card-name { flex: 1; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.service-card-price { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+.service-card-header .remove-btn { flex-shrink: 0; }
+.service-card-chevron { display: flex; flex-shrink: 0; color: var(--ink-soft); transition: transform 0.2s ease; }
+.service-card.expanded .service-card-chevron { transform: rotate(180deg); }
+.service-card-body { padding: 18px 20px 22px; border-top: 1px solid var(--line); }
+.service-card-body > *:first-child { margin-top: 0; }
 .add-btn:hover { background: rgba(201,169,114,0.14); }
 
 .plain-field { margin-bottom: 14px; }

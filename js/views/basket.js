@@ -1,6 +1,6 @@
 // Anfragekorb — the request basket. Collects configured services, shows a
 // running "Richtwert" total, and submits everything as one request.
-import { getBasket, removeFromBasket, basketTotal, submitRequest } from "../store.js";
+import { getBasket, removeFromBasket, basketTotal, submitRequest, getService } from "../store.js";
 import { t, tf } from "../i18n.js";
 import { icon } from "../icons.js";
 import { escapeHtml } from "../util.js";
@@ -43,11 +43,16 @@ export function basketView({ lang, room }) {
 }
 
 function basketItemCard(it, lang) {
+  // A null price means either "inclusive" or "on request" — the basket line
+  // only stores the resolved number (or null), so re-check the live service
+  // for which one it actually is (also self-corrects if staff flip that
+  // service's price mode while a guest has it sitting in their basket).
+  const onRequest = it.price == null && getService(it.serviceId)?.priceOnRequest;
   return `
     <div class="basket-item">
       <div class="row-between">
         <span class="title" lang="${lang}">${escapeHtml(tf(it.serviceName, lang))}</span>
-        ${it.price != null ? `<span class="price">${thb(it.price)}</span>` : `<span class="price">${t("inclusiveLabel", lang)}</span>`}
+        ${it.price != null ? `<span class="price">${thb(it.price)}</span>` : `<span class="price">${t(onRequest ? "onRequestLabel" : "inclusiveLabel", lang)}</span>`}
       </div>
       ${it.summary ? `<div class="summary">${escapeHtml(it.summary)}</div>` : ""}
       <div class="actions">

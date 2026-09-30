@@ -145,6 +145,10 @@ let pcFont = FONT_OPTIONS[0].id;
 let pcText = "";
 let pcFooter = null; // null = not yet initialized; lazily set to defaultPcFooter() on first render
 
+// services-editor state: which cards are open, by service id (not index —
+// indices shift on add/remove, ids don't).
+let expandedServices = new Set();
+
 // staff-management state
 const ROLE_OPTIONS = [
   { id: "admin", label: "Admin" },
@@ -335,8 +339,35 @@ async function handleRemoveService(si) {
   if (!row) return;
   if (!confirm(`„${tf(row.name, "de")}" wirklich löschen? Das entfernt den Service dauerhaft aus dem Gästeportal.`)) return;
   s.services.splice(si, 1);
+  expandedServices.delete(row.id);
   render();
   await deleteRow("services", row.id);
+}
+
+// Switching price mode also clears the fields the other modes don't use, so
+// a service can't end up simultaneously "on request" and carrying a stale
+// numeric price from before the switch.
+async function handleSetPriceMode(si, mode) {
+  const s = getState();
+  const row = s.services[si];
+  if (!row) return;
+  if (mode === "price") {
+    row.priceOnRequest = false;
+    if (row.fromPrice == null) row.fromPrice = 0;
+  } else if (mode === "inclusive") {
+    row.priceOnRequest = false;
+    row.fromPrice = null;
+  } else if (mode === "onRequest") {
+    row.priceOnRequest = true;
+    row.fromPrice = null;
+  }
+  flash = true;
+  render();
+  setTimeout(() => {
+    flash = false;
+    document.querySelectorAll(".save-flash").forEach((el) => el.classList.remove("show"));
+  }, 1400);
+  await updateRow("services", row.id, { price_on_request: row.priceOnRequest, from_price: row.fromPrice });
 }
 
 function fmtTime(ts) {
@@ -425,6 +456,11 @@ const CATEGORY_ICON = {
   laundry: "shirt", excursions: "mapPin", vehicle: "carTaxiFront", visa: "scrollText", maintenance: "sparkles",
 };
 const NEXT_REQ_STATUS = { in_pruefung: "bestaetigt", bestaetigt: "erledigt" };
+const PRICE_MODES = [
+  { id: "price", icon: "banknote", label: "Preis" },
+  { id: "inclusive", icon: "check", label: "Inklusive" },
+  { id: "onRequest", icon: "circleHelp", label: "Auf Anfrage" },
+];
 
 const ROLE_DASHBOARD_TITLE = {
   reception: ["Anfragen", "Alle Gästeanfragen in Echtzeit"],
@@ -858,18 +894,45 @@ function groupOptionsHaveOwnPrice(group) {
   return (group.options || []).some((o) => o.price != null);
 }
 
+function servicePriceMode(sv) {
+  if (sv.priceOnRequest) return "onRequest";
+  if (sv.fromPrice == null) return "inclusive";
+  return "price";
+}
+
+function servicePriceSummary(sv) {
+  if (sv.priceOnRequest) return "Auf Anfrage";
+  if (sv.fromPrice == null) return "Inklusive";
+  return `ab THB ${Math.round(sv.fromPrice)}${sv.priceUnit ? ` / ${sv.priceUnit}` : ""}`;
+}
+
+// Collapsed-by-default accordion: with 9+ services each carrying a full
+// name/desc/category/price/option-groups form, showing all of them open at
+// once was an overwhelming wall of fields — staff now see just an icon,
+// name and price per row, and open only the one they came to edit.
 function viewServices() {
   const s = getState();
   return `
     ${topHeader("Services", "Der Servicekatalog, den Gäste im Portal durchstöbern und anfragen")}
-    ${s.services
-      .map(
-        (sv, si) => `
-      <div class="editor-section">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-          <h3 style="margin-bottom:0;">${escapeHtml(tf(sv.name, "de"))}</h3>
-          <button class="remove-btn" data-action="remove-service" data-si="${si}" title="Service löschen">${icon("x", { size: 13 })}</button>
-        </div>
+    ${s.services.map((sv, si) => serviceCard(sv, si, expandedServices.has(sv.id))).join("")}
+    <button class="add-btn" data-action="add-service">+ Service hinzufügen</button>
+    <datalist id="category-suggestions">
+      ${Object.entries(CATEGORY_LABEL).map(([val, label]) => `<option value="${val}">${escapeHtml(label)}</option>`).join("")}
+    </datalist>`;
+}
+
+function serviceCard(sv, si, expanded) {
+  return `
+    <div class="editor-section service-card ${expanded ? "expanded" : ""}">
+      <div class="service-card-header" data-action="toggle-service" data-si="${si}">
+        <span class="service-card-icon">${icon(CATEGORY_ICON[sv.category] || "sparkles", { size: 16 })}</span>
+        <span class="service-card-name">${escapeHtml(tf(sv.name, "de")) || "(ohne Namen)"}</span>
+        <span class="service-card-price">${escapeHtml(servicePriceSummary(sv))}</span>
+        <button class="remove-btn" data-action="remove-service" data-si="${si}" title="Service löschen">${icon("x", { size: 13 })}</button>
+        <span class="service-card-chevron">${icon("chevronDown", { size: 16 })}</span>
+      </div>
+      ${expanded ? `
+      <div class="service-card-body">
         ${triLang("Name", `services.${si}.name`)}
         ${triLang("Kurzbeschreibung", `services.${si}.shortDesc`)}
         <div class="num-row">
@@ -879,21 +942,28 @@ function viewServices() {
             <p class="rules-hint" style="margin-top:4px;">Freier Text — bestehende Kategorien als Vorschlag, oder eine neue eintippen (z. B. „babysitting").</p>
           </div>
         </div>
+        <div class="plain-field">
+          <label>Preis</label>
+          <div class="font-swatches">
+            ${PRICE_MODES.map(
+              (m) => `
+              <button class="font-swatch ${servicePriceMode(sv) === m.id ? "active" : ""}" data-action="set-price-mode" data-si="${si}" data-mode="${m.id}">
+                <div class="sample" style="display:flex;justify-content:center;color:var(--copper);">${icon(m.icon, { size: 16 })}</div><div class="label">${m.label}</div>
+              </button>`
+            ).join("")}
+          </div>
+        </div>
+        ${servicePriceMode(sv) === "price" ? `
         <div class="num-row">
           <div class="field-mini">
-            <label>Ab-Preis (THB, leer = „inklusive")</label>
+            <label>Ab-Preis (THB)</label>
             <input type="number" step="1" value="${sv.fromPrice ?? ""}" data-bind="services.${si}.fromPrice" data-number="true" />
           </div>
           <div class="field-mini"><label>Preiseinheit (optional, z. B. „Tag")</label><input value="${escapeAttr(sv.priceUnit || "")}" data-bind="services.${si}.priceUnit" /></div>
-        </div>
+        </div>` : ""}
         ${sv.optionGroups.map((g, gi) => optionGroupEditor(sv, si, g, gi)).join("")}
-      </div>`
-      )
-      .join("")}
-    <button class="add-btn" data-action="add-service">+ Service hinzufügen</button>
-    <datalist id="category-suggestions">
-      ${Object.entries(CATEGORY_LABEL).map(([val, label]) => `<option value="${val}">${escapeHtml(label)}</option>`).join("")}
-    </datalist>`;
+      </div>` : ""}
+    </div>`;
 }
 
 function optionGroupEditor(service, si, group, gi) {
@@ -1261,6 +1331,16 @@ root.addEventListener("click", async (e) => {
   }
   if (action === "remove-service") {
     return handleRemoveService(Number(t.dataset.si));
+  }
+  if (action === "toggle-service") {
+    const id = getState().services[Number(t.dataset.si)]?.id;
+    if (!id) return;
+    if (expandedServices.has(id)) expandedServices.delete(id);
+    else expandedServices.add(id);
+    return render();
+  }
+  if (action === "set-price-mode") {
+    return handleSetPriceMode(Number(t.dataset.si), t.dataset.mode);
   }
   if (action === "add-tip") {
     getState().content.localTips.push(BLANK_TIP());

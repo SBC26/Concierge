@@ -139,6 +139,12 @@ const ICON_PATHS = {
   monitor: `<rect width="20" height="14" x="2" y="3" rx="2" />
   <line x1="8" x2="16" y1="21" y2="21" />
   <line x1="12" x2="12" y1="17" y2="21" />`,
+  banknote: `<rect width="20" height="12" x="2" y="6" rx="2" />
+  <circle cx="12" cy="12" r="2" />
+  <path d="M6 12h.01M18 12h.01" />`,
+  circleHelp: `<circle cx="12" cy="12" r="10" />
+  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+  <path d="M12 17h.01" />`,
 };
 
 export function icon(name, { size = 22, strokeWidth = 1.25, className = "" } = {}) {
