@@ -157,18 +157,25 @@ export function renderOptionGroup(service, group, draft, lang) {
       })
       .join("");
   } else if (group.type === "date") {
-    control = `<input type="date" class="field-input" id="${optionFieldId(service.id, group.key)}" />`;
+    control = `<input type="date" class="field-input" id="${optionFieldId(service.id, group.key)}" value="${escapeHtml(draft[group.key] || "")}" />`;
   } else if (group.type === "time") {
-    control = `<input type="time" class="field-input" id="${optionFieldId(service.id, group.key)}" />`;
+    control = `<input type="time" class="field-input" id="${optionFieldId(service.id, group.key)}" value="${escapeHtml(draft[group.key] || "")}" />`;
   } else if (group.type === "datetime") {
+    const v = draft[group.key] || {};
     control = `<div class="field-row-2">
-      <input type="date" class="field-input" id="${optionFieldId(service.id, group.key, "date")}" />
-      <input type="time" class="field-input" id="${optionFieldId(service.id, group.key, "time")}" />
+      <input type="date" class="field-input" id="${optionFieldId(service.id, group.key, "date")}" value="${escapeHtml(v.date || "")}" />
+      <input type="time" class="field-input" id="${optionFieldId(service.id, group.key, "time")}" value="${escapeHtml(v.time || "")}" />
     </div>`;
   } else if (group.type === "text") {
+    // Seeded from `draft` (not just left empty) so a re-render triggered by
+    // some *other* group — e.g. picking a segmented "Dringlichkeit" option —
+    // doesn't blow away text the guest already typed here: serviceDetail.js's
+    // optSet/optToggle/optStep sync the live DOM value into `draft` right
+    // before triggering that re-render, and this is where it lands back.
+    const v = escapeHtml(draft[group.key] || "");
     control = group.multiline
-      ? `<textarea class="field-input" id="${optionFieldId(service.id, group.key)}" placeholder="…"></textarea>`
-      : `<input type="text" class="field-input" id="${optionFieldId(service.id, group.key)}" placeholder="…" />`;
+      ? `<textarea class="field-input" id="${optionFieldId(service.id, group.key)}" placeholder="…">${v}</textarea>`
+      : `<input type="text" class="field-input" id="${optionFieldId(service.id, group.key)}" placeholder="…" value="${v}" />`;
   } else if (group.type === "stepper") {
     const val = draft[group.key] ?? group.default ?? group.min ?? 1;
     control = `<div class="stepper-row">

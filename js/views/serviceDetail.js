@@ -39,7 +39,28 @@ export function activeService() {
   return activeServiceId ? getService(activeServiceId) : null;
 }
 
+// optSet/optToggle/optStep each trigger a full re-render (app.js's "opt-*"
+// actions call render() straight after). renderOptionGroup() rebuilds every
+// group's markup from scratch, including date/time/text fields — which live
+// in the DOM, not in `draft`, while the guest is typing (so keystrokes don't
+// fight a re-render). Without this sync, picking e.g. a segmented option in
+// one group would wipe out whatever the guest had already typed into a text
+// field in another group, since the fresh render had no way to know it was
+// there. Called at the top of every reactive-field setter, before the value
+// change that's about to trigger that re-render.
+function syncDomFieldsIntoDraft() {
+  const service = activeService();
+  if (!service) return;
+  const values = collectDraftValues(service, draft);
+  for (const g of service.optionGroups || []) {
+    if (g.type === "date" || g.type === "time" || g.type === "datetime" || g.type === "text") {
+      draft[g.key] = values[g.key];
+    }
+  }
+}
+
 export function optStep(key, dir) {
+  syncDomFieldsIntoDraft();
   const service = activeService();
   const group = service?.optionGroups.find((g) => g.key === key);
   if (!group) return;
@@ -49,10 +70,12 @@ export function optStep(key, dir) {
 }
 
 export function optSet(key, value) {
+  syncDomFieldsIntoDraft();
   draft[key] = value;
 }
 
 export function optToggle(key, value) {
+  syncDomFieldsIntoDraft();
   const cur = draft[key] || [];
   draft[key] = cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value];
 }
