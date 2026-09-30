@@ -10,6 +10,9 @@ import {
   clearPostcards,
   updateHotelContent,
   updateRow,
+  insertRow,
+  deleteRow,
+  mapService,
   updateBookingRow,
   updateRoomRow,
   getIdleMode,
@@ -303,6 +306,37 @@ async function commitServiceOptionGroups(si) {
     document.querySelectorAll(".save-flash").forEach((el) => el.classList.remove("show"));
   }, 1400);
   await updateRow("services", row.id, { option_groups: row.optionGroups });
+}
+
+// New services need a category that satisfies the DB's fixed CHECK constraint
+// (transfer/housekeeping/chef/spa/laundry/excursions/vehicle/visa/maintenance)
+// — staff pick a fitting one from the dropdown right after adding, this is
+// just a safe starting value. Multiple services may share one category; it's
+// a classification/icon tag, not a unique key.
+async function handleAddService() {
+  const s = getState();
+  const sortOrder = s.services.reduce((max, sv) => Math.max(max, sv.sortOrder ?? 0), 0) + 1;
+  const row = await insertRow("services", {
+    category: Object.keys(CATEGORY_LABEL)[0],
+    name: { de: "Neuer Service", en: "New service", th: "บริการใหม่" },
+    short_desc: { de: "", en: "", th: "" },
+    from_price: null,
+    option_groups: [],
+    sort_order: sortOrder,
+  });
+  if (!row) return; // insertRow already logged the error
+  s.services.push(mapService(row));
+  render();
+}
+
+async function handleRemoveService(si) {
+  const s = getState();
+  const row = s.services[si];
+  if (!row) return;
+  if (!confirm(`„${tf(row.name, "de")}" wirklich löschen? Das entfernt den Service dauerhaft aus dem Gästeportal.`)) return;
+  s.services.splice(si, 1);
+  render();
+  await deleteRow("services", row.id);
 }
 
 function fmtTime(ts) {
@@ -832,9 +866,20 @@ function viewServices() {
       .map(
         (sv, si) => `
       <div class="editor-section">
-        <h3>${escapeHtml(tf(sv.name, "de"))}</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <h3 style="margin-bottom:0;">${escapeHtml(tf(sv.name, "de"))}</h3>
+          <button class="remove-btn" data-action="remove-service" data-si="${si}" title="Service löschen">${icon("x", { size: 13 })}</button>
+        </div>
         ${triLang("Name", `services.${si}.name`)}
         ${triLang("Kurzbeschreibung", `services.${si}.shortDesc`)}
+        <div class="num-row">
+          <div class="field-mini">
+            <label>Kategorie</label>
+            <select data-bind="services.${si}.category">
+              ${Object.entries(CATEGORY_LABEL).map(([val, label]) => `<option value="${val}" ${sv.category === val ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}
+            </select>
+          </div>
+        </div>
         <div class="num-row">
           <div class="field-mini">
             <label>Ab-Preis (THB, leer = „inklusive")</label>
@@ -845,7 +890,8 @@ function viewServices() {
         ${sv.optionGroups.map((g, gi) => optionGroupEditor(sv, si, g, gi)).join("")}
       </div>`
       )
-      .join("")}`;
+      .join("")}
+    <button class="add-btn" data-action="add-service">+ Service hinzufügen</button>`;
 }
 
 function optionGroupEditor(service, si, group, gi) {
@@ -1207,6 +1253,12 @@ root.addEventListener("click", async (e) => {
     const s = getState();
     s.services[si].optionGroups[gi].options.splice(oi, 1);
     return commitServiceOptionGroups(si);
+  }
+  if (action === "add-service") {
+    return handleAddService();
+  }
+  if (action === "remove-service") {
+    return handleRemoveService(Number(t.dataset.si));
   }
   if (action === "add-tip") {
     getState().content.localTips.push(BLANK_TIP());

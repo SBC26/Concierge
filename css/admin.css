@@ -189,7 +189,7 @@ button { font-family: inherit; }
 .num-row { display: flex; gap: 12px; margin-top: 10px; }
 .num-row .field-mini { flex: 1; }
 .num-row label { font-size: 11px; color: var(--ink-soft); font-weight: 600; }
-.num-row input { width: 100%; background: var(--sbc-wattblau-soft); border: 1px solid var(--line); color: var(--sbc-sand); border-radius: var(--radius-btn); padding: 7px 9px; font-size: 13px; margin-top: 3px; }
+.num-row input, .num-row select { width: 100%; background: var(--sbc-wattblau-soft); border: 1px solid var(--line); color: var(--sbc-sand); border-radius: var(--radius-btn); padding: 7px 9px; font-size: 13px; margin-top: 3px; font-family: inherit; }
 
 .add-btn { border: 1.5px dashed var(--sbc-gold); background: rgba(201,169,114,0.08); color: var(--sbc-gold-bright); border-radius: var(--radius-sm); padding: 12px; width: 100%; font-weight: 700; cursor: pointer; font-size: 13px; }
 .add-btn:hover { background: rgba(201,169,114,0.14); }
