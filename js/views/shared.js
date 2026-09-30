@@ -67,10 +67,19 @@ export function optionFieldId(serviceId, groupKey, sub) {
 // (kept in JS state so selections re-render immediately), text/date/time
 // types are read straight from the DOM at submit time so typing never
 // fights a full innerHTML re-render.
+//
+// segmented/stepper fall back to group.default when the guest never touched
+// them — renderOptionGroup() already shows that default pre-selected, so the
+// submitted value has to match what's visibly on screen, not silently come
+// back empty just because nobody clicked it.
 export function collectDraftValues(service, draft) {
   const values = {};
   for (const g of service.optionGroups || []) {
-    if (REACTIVE_TYPES.has(g.type)) {
+    if (g.type === "segmented") {
+      values[g.key] = draft[g.key] ?? g.default ?? null;
+    } else if (g.type === "stepper") {
+      values[g.key] = draft[g.key] ?? g.default ?? g.min ?? null;
+    } else if (REACTIVE_TYPES.has(g.type)) {
       values[g.key] = draft[g.key];
     } else if (g.type === "datetime") {
       const date = document.getElementById(optionFieldId(service.id, g.key, "date"))?.value || "";
@@ -139,8 +148,9 @@ export function renderOptionGroup(service, group, draft, lang) {
   let control = "";
 
   if (group.type === "segmented") {
+    const selectedVal = draft[group.key] ?? group.default;
     control = `<div class="segmented">${(group.options || [])
-      .map((o) => `<button type="button" data-action="opt-set" data-key="${group.key}" data-value="${o.value}" class="${draft[group.key] === o.value ? "selected" : ""}">${escapeHtml(tf(o.label, lang))}</button>`)
+      .map((o) => `<button type="button" data-action="opt-set" data-key="${group.key}" data-value="${o.value}" class="${selectedVal === o.value ? "selected" : ""}">${escapeHtml(tf(o.label, lang))}</button>`)
       .join("")}</div>`;
   } else if (group.type === "choice-list") {
     const selected = group.multi ? draft[group.key] || [] : draft[group.key];
