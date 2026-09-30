@@ -142,8 +142,8 @@ export function summarizeDraft(service, values, lang) {
 }
 
 // ---------- rendering ----------
-export function renderOptionGroup(service, group, draft, lang) {
-  const label = `<span class="section-label">${escapeHtml(tf(group.label, lang))}</span>`;
+export function renderOptionGroup(service, group, draft, lang, invalid = false) {
+  const label = `<span class="section-label">${escapeHtml(tf(group.label, lang))}${group.required ? ' <span class="required-mark">*</span>' : ""}</span>`;
   const helper = group.helper ? `<div class="helper">${escapeHtml(tf(group.helper, lang))}</div>` : "";
   let control = "";
 
@@ -195,5 +195,5 @@ export function renderOptionGroup(service, group, draft, lang) {
     </div>`;
   }
 
-  return `<div class="form-group">${label}${control}${helper}</div>`;
+  return `<div class="form-group ${invalid ? "invalid" : ""}">${label}${control}${helper}</div>`;
 }

@@ -13,12 +13,16 @@ let activeServiceId = null;
 let draft = {};
 let editingBasketKey = null;
 let returnRoute = "home";
+// Keys of required groups the guest tried to submit without filling in —
+// cleared on every open and on every successful submit attempt.
+let missingRequired = new Set();
 
 export function openService(id, fromRoute = "home") {
   activeServiceId = id;
   draft = {};
   editingBasketKey = null;
   returnRoute = fromRoute;
+  missingRequired = new Set();
 }
 
 export function openServiceForEdit(basketKey) {
@@ -29,6 +33,7 @@ export function openServiceForEdit(basketKey) {
   returnRoute = "basket";
   const service = getService(item.serviceId);
   draft = {};
+  missingRequired = new Set();
   for (const g of service?.optionGroups || []) {
     if (g.type === "segmented" || g.type === "stepper" || (g.type === "choice-list" && !g.multi)) draft[g.key] = item.optionValues?.[g.key];
     else if (g.type === "choice-list" && g.multi) draft[g.key] = item.optionValues?.[g.key] || [];
@@ -72,12 +77,14 @@ export function optStep(key, dir) {
 export function optSet(key, value) {
   syncDomFieldsIntoDraft();
   draft[key] = value;
+  missingRequired.delete(key);
 }
 
 export function optToggle(key, value) {
   syncDomFieldsIntoDraft();
   const cur = draft[key] || [];
   draft[key] = cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value];
+  if (draft[key].length) missingRequired.delete(key);
 }
 
 // Called after the view is in the DOM, to prefill DOM-backed fields (date/time/text)
@@ -102,10 +109,36 @@ export function serviceDetailAfterMount() {
   }
 }
 
+// What counts as "empty" differs per type — a stepper always carries some
+// number (its default), so it's really only text/date/time/datetime/
+// segmented/choice-list that can meaningfully be missing.
+function isValueMissing(group, value) {
+  switch (group.type) {
+    case "text":
+    case "date":
+    case "time":
+      return !value || !String(value).trim();
+    case "datetime":
+      return !value || !value.date || !value.time;
+    case "segmented":
+      return value == null || value === "";
+    case "choice-list":
+      return group.multi ? !(value && value.length) : value == null || value === "";
+    default:
+      return false;
+  }
+}
+
 export function confirmAddToBasket(lang) {
   const service = activeService();
   if (!service) return returnRoute;
   const values = collectDraftValues(service, draft);
+  const missing = (service.optionGroups || []).filter((g) => g.required && isValueMissing(g, values[g.key]));
+  if (missing.length) {
+    missingRequired = new Set(missing.map((g) => g.key));
+    return null;
+  }
+  missingRequired = new Set();
   const summary = summarizeDraft(service, values, lang);
   const price = draftPrice(service, values);
   const payload = { serviceId: service.id, category: service.category, serviceName: service.name, summary, price, optionValues: values };
@@ -134,10 +167,11 @@ export function serviceDetailView({ lang }) {
           </div>
         </div>
         <div class="form-stack">
-          ${service.optionGroups.map((g) => renderOptionGroup(service, g, draft, lang)).join("")}
+          ${service.optionGroups.map((g) => renderOptionGroup(service, g, draft, lang, missingRequired.has(g.key))).join("")}
         </div>
       </div>
       <div class="form-footer bar">
+        ${missingRequired.size ? `<p class="error-text" lang="${lang}">${escapeHtml(t("requiredFieldsError", lang))}</p>` : ""}
         <button class="btn-primary" data-action="add-to-basket">${t("addToBasketBtn", lang)}</button>
         <div class="fine-print" lang="${lang}">${t("basketDisclaimer", lang)}</div>
       </div>

@@ -153,6 +153,9 @@ document.addEventListener("click", async (e) => {
       return render();
     case "add-to-basket": {
       const to = confirmAddToBasket(lang);
+      // null means required fields are missing — confirmAddToBasket() has
+      // already recorded which ones, stay put and re-render to show it.
+      if (!to) return render();
       return navigate(to);
     }
 

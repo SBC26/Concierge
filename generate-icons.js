@@ -7,7 +7,7 @@ const NEEDED = [
   "moon", "shirt", "sparkles", "scroll-text", "wifi", "clock", "sunrise", "log-in", "log-out",
   "phone-call", "check", "x", "chevron-down", "arrow-left", "arrow-right", "plus", "minus", "map-pin", "users", "send",
   "key-round", "trash-2", "bell", "bell-ring", "volume-2", "volume-x", "languages", "copy", "monitor",
-  "banknote", "circle-help",
+  "banknote", "circle-help", "chevron-up",
 ];
 
 const iconsDir = path.join(__dirname, "node_modules", "lucide-static", "icons");

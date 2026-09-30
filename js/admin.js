@@ -396,6 +396,23 @@ function handleRemoveOptionGroup(si, gi) {
   return commitServiceOptionGroups(si);
 }
 
+// Free reordering of the guest-facing service tiles. Renumbers every
+// service's sort_order sequentially from the new array order rather than
+// swapping just the two moved rows' values — robust regardless of whatever
+// sort_order values already existed (ties, gaps, …), at the cost of writing
+// every row on each move, which is cheap at this catalog's size (a dozen
+// services, not hundreds).
+async function handleMoveService(si, dir) {
+  const s = getState();
+  const otherIndex = si + dir;
+  if (otherIndex < 0 || otherIndex >= s.services.length) return;
+  const arr = s.services;
+  [arr[si], arr[otherIndex]] = [arr[otherIndex], arr[si]];
+  arr.forEach((sv, i) => { sv.sortOrder = i; });
+  render();
+  await Promise.all(arr.map((sv, i) => updateRow("services", sv.id, { sort_order: i })));
+}
+
 function fmtTime(ts) {
   const d = new Date(ts);
   return d.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
@@ -957,20 +974,24 @@ function viewServices() {
   const s = getState();
   return `
     ${topHeader("Services", "Der Servicekatalog, den Gäste im Portal durchstöbern und anfragen")}
-    ${s.services.map((sv, si) => serviceCard(sv, si, expandedServices.has(sv.id))).join("")}
+    ${s.services.map((sv, si) => serviceCard(sv, si, expandedServices.has(sv.id), s.services.length)).join("")}
     <button class="add-btn" data-action="add-service">+ Service hinzufügen</button>
     <datalist id="category-suggestions">
       ${Object.entries(CATEGORY_LABEL).map(([val, label]) => `<option value="${val}">${escapeHtml(label)}</option>`).join("")}
     </datalist>`;
 }
 
-function serviceCard(sv, si, expanded) {
+function serviceCard(sv, si, expanded, total) {
   return `
     <div class="editor-section service-card ${expanded ? "expanded" : ""}">
       <div class="service-card-header" data-action="toggle-service" data-si="${si}">
         <span class="service-card-icon">${icon(CATEGORY_ICON[sv.category] || "sparkles", { size: 16 })}</span>
         <span class="service-card-name">${escapeHtml(tf(sv.name, "de")) || "(ohne Namen)"}</span>
         <span class="service-card-price">${escapeHtml(servicePriceSummary(sv))}</span>
+        <div class="service-card-move">
+          <button class="move-btn" data-action="move-service" data-si="${si}" data-dir="-1" title="Nach oben" ${si === 0 ? "disabled" : ""}>${icon("chevronUp", { size: 12 })}</button>
+          <button class="move-btn" data-action="move-service" data-si="${si}" data-dir="1" title="Nach unten" ${si === total - 1 ? "disabled" : ""}>${icon("chevronDown", { size: 12 })}</button>
+        </div>
         <button class="remove-btn" data-action="remove-service" data-si="${si}" title="Service löschen">${icon("x", { size: 13 })}</button>
         <span class="service-card-chevron">${icon("chevronDown", { size: 16 })}</span>
       </div>
@@ -1035,6 +1056,14 @@ function optionGroupEditor(service, si, group, gi) {
       </div>
       <p class="rules-hint" style="margin-top:4px;">Schlüssel ist ein interner Bezeichner (z. B. „richtung"), für Gäste nicht sichtbar.</p>
       ${triLang("Feldbezeichnung", `services.${si}.optionGroups.${gi}.label`)}
+      <div class="plain-field">
+        <label>Pflichtfeld</label>
+        <div class="font-swatches">
+          <button class="font-swatch ${!group.required ? "active" : ""}" data-action="set-group-required" data-si="${si}" data-gi="${gi}" data-value="false"><div class="label">Optional</div></button>
+          <button class="font-swatch ${group.required ? "active" : ""}" data-action="set-group-required" data-si="${si}" data-gi="${gi}" data-value="true"><div class="label">Pflichtfeld</div></button>
+        </div>
+        <p class="rules-hint" style="margin-top:4px;">Pflichtfeld: Gast muss hier etwas erfassen, um die Anfrage abschicken zu können.</p>
+      </div>
       ${group.type === "text" ? `
       <div class="plain-field">
         <label>Eingabeart</label>
@@ -1446,6 +1475,9 @@ root.addEventListener("click", async (e) => {
   if (action === "add-group") {
     return handleAddOptionGroup(Number(t.dataset.si));
   }
+  if (action === "move-service") {
+    return handleMoveService(Number(t.dataset.si), Number(t.dataset.dir));
+  }
   if (action === "remove-group") {
     return handleRemoveOptionGroup(Number(t.dataset.si), Number(t.dataset.gi));
   }
@@ -1455,6 +1487,14 @@ root.addEventListener("click", async (e) => {
     const group = getState().services[si]?.optionGroups[gi];
     if (!group) return;
     group.multiline = t.dataset.value === "true";
+    return commitServiceOptionGroups(si);
+  }
+  if (action === "set-group-required") {
+    const si = Number(t.dataset.si);
+    const gi = Number(t.dataset.gi);
+    const group = getState().services[si]?.optionGroups[gi];
+    if (!group) return;
+    group.required = t.dataset.value === "true";
     return commitServiceOptionGroups(si);
   }
   if (action === "add-tip") {

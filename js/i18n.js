@@ -35,6 +35,7 @@ export const UI = {
   // ---------- Service detail ----------
   serviceSectionLabel: { de: "Service", en: "Service", th: "บริการ" },
   addToBasketBtn: { de: "In den Anfragekorb", en: "Add to request basket", th: "เพิ่มลงตะกร้าคำขอ" },
+  requiredFieldsError: { de: "Bitte fülle alle Pflichtfelder aus.", en: "Please fill in all required fields.", th: "กรุณากรอกข้อมูลในช่องที่จำเป็นทั้งหมด" },
   basketDisclaimer: {
     de: "Noch keine Buchung. Wir bestätigen innerhalb von 12 Stunden.",
     en: "Not booked yet. We confirm within 12 hours.",
