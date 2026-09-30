@@ -308,11 +308,11 @@ async function commitServiceOptionGroups(si) {
   await updateRow("services", row.id, { option_groups: row.optionGroups });
 }
 
-// New services need a category that satisfies the DB's fixed CHECK constraint
-// (transfer/housekeeping/chef/spa/laundry/excursions/vehicle/visa/maintenance)
-// — staff pick a fitting one from the dropdown right after adding, this is
-// just a safe starting value. Multiple services may share one category; it's
-// a classification/icon tag, not a unique key.
+// category is free text (the DB's old fixed CHECK constraint was dropped) —
+// this is just a sensible starting value staff can overwrite right away.
+// Multiple services may share one category; it's a classification/icon tag
+// (CATEGORY_LABEL/CATEGORY_ICON, with a graceful fallback to the raw string
+// for anything custom), not a unique key.
 async function handleAddService() {
   const s = getState();
   const sortOrder = s.services.reduce((max, sv) => Math.max(max, sv.sortOrder ?? 0), 0) + 1;
@@ -848,7 +848,7 @@ function viewInfo() {
   `;
 }
 
-// ---------- SERVICES EDITOR (unified catalog, 9 fixed categories) ----------
+// ---------- SERVICES EDITOR (unified catalog, free-text category) ----------
 // Each service's own option groups drive the guest-facing Service-Detail
 // screen. Staff can edit name/description/price and, for choice-driven groups
 // (segmented/choice-list), add or remove the individual options — the group
@@ -875,9 +875,8 @@ function viewServices() {
         <div class="num-row">
           <div class="field-mini">
             <label>Kategorie</label>
-            <select data-bind="services.${si}.category">
-              ${Object.entries(CATEGORY_LABEL).map(([val, label]) => `<option value="${val}" ${sv.category === val ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}
-            </select>
+            <input value="${escapeAttr(sv.category)}" data-bind="services.${si}.category" list="category-suggestions" />
+            <p class="rules-hint" style="margin-top:4px;">Freier Text — bestehende Kategorien als Vorschlag, oder eine neue eintippen (z. B. „babysitting").</p>
           </div>
         </div>
         <div class="num-row">
@@ -891,7 +890,10 @@ function viewServices() {
       </div>`
       )
       .join("")}
-    <button class="add-btn" data-action="add-service">+ Service hinzufügen</button>`;
+    <button class="add-btn" data-action="add-service">+ Service hinzufügen</button>
+    <datalist id="category-suggestions">
+      ${Object.entries(CATEGORY_LABEL).map(([val, label]) => `<option value="${val}">${escapeHtml(label)}</option>`).join("")}
+    </datalist>`;
 }
 
 function optionGroupEditor(service, si, group, gi) {
