@@ -890,13 +890,18 @@ function viewInfo() {
 // (segmented/choice-list), add or remove the individual options — the group
 // structure itself (which categories have which groups) is fixed by design,
 // mirrored from the mockups, so it isn't editable here.
-function groupOptionsHaveOwnPrice(group) {
-  return (group.options || []).some((o) => o.price != null);
-}
-
 function servicePriceMode(sv) {
   if (sv.priceOnRequest) return "onRequest";
   if (sv.fromPrice == null) return "inclusive";
+  return "price";
+}
+
+// Same three-way mode as servicePriceMode(), but per option within a
+// segmented/choice-list group's own options list (e.g. one "Fahrzeug" choice
+// costs a fixed price, another is included, another only "auf Anfrage").
+function optionPriceMode(opt) {
+  if (opt.priceOnRequest) return "onRequest";
+  if (opt.price == null) return "inclusive";
   return "price";
 }
 
@@ -985,8 +990,19 @@ function optionGroupEditor(service, si, group, gi) {
                 <button class="remove-btn" data-action="remove-option" data-si="${si}" data-gi="${gi}" data-oi="${oi}">${icon("x", { size: 13 })}</button>
               </div>
               ${triLang("Bezeichnung", `services.${si}.optionGroups.${gi}.options.${oi}.label`)}
+              <div class="plain-field" style="margin-bottom:0;">
+                <label>Preis</label>
+                <div class="font-swatches">
+                  ${PRICE_MODES.map(
+                    (m) => `
+                    <button class="font-swatch ${optionPriceMode(opt) === m.id ? "active" : ""}" data-action="set-option-price-mode" data-si="${si}" data-gi="${gi}" data-oi="${oi}" data-mode="${m.id}">
+                      <div class="sample" style="display:flex;justify-content:center;color:var(--copper);">${icon(m.icon, { size: 14 })}</div><div class="label">${m.label}</div>
+                    </button>`
+                  ).join("")}
+                </div>
+              </div>
               ${
-                opt.price != null || groupOptionsHaveOwnPrice(group)
+                optionPriceMode(opt) === "price"
                   ? `<div class="num-row"><div class="field-mini"><label>Preis (THB)</label><input type="number" step="1" value="${opt.price ?? 0}" data-bind="services.${si}.optionGroups.${gi}.options.${oi}.price" data-number="true" /></div></div>`
                   : ""
               }
@@ -1314,7 +1330,6 @@ root.addEventListener("click", async (e) => {
     group.options.push({
       value: crypto.randomUUID(),
       label: { de: "Neue Option", en: "New option", th: "ตัวเลือกใหม่" },
-      ...(groupOptionsHaveOwnPrice(group) ? { price: 0 } : {}),
     });
     return commitServiceOptionGroups(si);
   }
@@ -1324,6 +1339,26 @@ root.addEventListener("click", async (e) => {
     const oi = Number(t.dataset.oi);
     const s = getState();
     s.services[si].optionGroups[gi].options.splice(oi, 1);
+    return commitServiceOptionGroups(si);
+  }
+  if (action === "set-option-price-mode") {
+    const si = Number(t.dataset.si);
+    const gi = Number(t.dataset.gi);
+    const oi = Number(t.dataset.oi);
+    const s = getState();
+    const opt = s.services[si]?.optionGroups[gi]?.options[oi];
+    if (!opt) return;
+    const mode = t.dataset.mode;
+    if (mode === "price") {
+      opt.priceOnRequest = false;
+      if (opt.price == null) opt.price = 0;
+    } else if (mode === "inclusive") {
+      opt.priceOnRequest = false;
+      opt.price = null;
+    } else if (mode === "onRequest") {
+      opt.priceOnRequest = true;
+      opt.price = null;
+    }
     return commitServiceOptionGroups(si);
   }
   if (action === "add-service") {
