@@ -432,7 +432,7 @@ function requestChip(item) {
       </div>
       <div class="items">${escapeHtml(tf(item.serviceName, "de"))}</div>
       ${item.summary ? `<div class="note">${icon("scrollText", { size: 13 })} ${escapeHtml(item.summary)}</div>` : ""}
-      <div class="meta">${fmtTime(item.createdAt)}${item.price != null ? ` · CHF ${item.price.toFixed(0)}` : ""}</div>
+      <div class="meta">${fmtTime(item.createdAt)}${item.price != null ? ` · THB ${item.price.toFixed(0)}` : ""}</div>
       <input class="fulfillment-input" placeholder="Notiz zur Erledigung (z. B. Fahrer &amp; Nummer)" value="${escapeAttr(item.fulfillmentNote || "")}" data-action="set-fulfillment" data-id="${item.id}" />
       <div class="actions">
         ${next ? `<button class="pill-btn sm" data-action="advance-request" data-id="${item.id}" data-next="${next}">${icon("arrowRight", { size: 13 })} ${REQ_STATUSES.find((s) => s.id === next).label}</button>` : ""}
@@ -837,7 +837,7 @@ function viewServices() {
         ${triLang("Kurzbeschreibung", `services.${si}.shortDesc`)}
         <div class="num-row">
           <div class="field-mini">
-            <label>Ab-Preis (CHF, leer = „inklusive")</label>
+            <label>Ab-Preis (THB, leer = „inklusive")</label>
             <input type="number" step="1" value="${sv.fromPrice ?? ""}" data-bind="services.${si}.fromPrice" data-number="true" />
           </div>
           <div class="field-mini"><label>Preiseinheit (optional, z. B. „Tag")</label><input value="${escapeAttr(sv.priceUnit || "")}" data-bind="services.${si}.priceUnit" /></div>
@@ -869,7 +869,7 @@ function optionGroupEditor(service, si, group, gi) {
               ${triLang("Bezeichnung", `services.${si}.optionGroups.${gi}.options.${oi}.label`)}
               ${
                 opt.price != null || groupOptionsHaveOwnPrice(group)
-                  ? `<div class="num-row"><div class="field-mini"><label>Preis (CHF)</label><input type="number" step="1" value="${opt.price ?? 0}" data-bind="services.${si}.optionGroups.${gi}.options.${oi}.price" data-number="true" /></div></div>`
+                  ? `<div class="num-row"><div class="field-mini"><label>Preis (THB)</label><input type="number" step="1" value="${opt.price ?? 0}" data-bind="services.${si}.optionGroups.${gi}.options.${oi}.price" data-number="true" /></div></div>`
                   : ""
               }
             </div>`

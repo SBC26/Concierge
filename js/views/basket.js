@@ -4,7 +4,7 @@ import { getBasket, removeFromBasket, basketTotal, submitRequest } from "../stor
 import { t, tf } from "../i18n.js";
 import { icon } from "../icons.js";
 import { escapeHtml } from "../util.js";
-import { renderBackHeader, chf } from "./shared.js";
+import { renderBackHeader, thb } from "./shared.js";
 
 export function basketView({ lang, room }) {
   const items = getBasket();
@@ -25,7 +25,7 @@ export function basketView({ lang, room }) {
         <div class="basket-right">
           ${items.length > 0 ? `
             <div class="total-card">
-              <div class="row-between"><span>${t("richtwertLabel", lang)}</span><b>${chf(total)}</b></div>
+              <div class="row-between"><span>${t("richtwertLabel", lang)}</span><b>${thb(total)}</b></div>
               <div class="fine-print" lang="${lang}">${t("richtwertFinePrint", lang)}</div>
             </div>
             <div class="section-pad">
@@ -47,7 +47,7 @@ function basketItemCard(it, lang) {
     <div class="basket-item">
       <div class="row-between">
         <span class="title" lang="${lang}">${escapeHtml(tf(it.serviceName, lang))}</span>
-        ${it.price != null ? `<span class="price">${chf(it.price)}</span>` : `<span class="price">${t("inclusiveLabel", lang)}</span>`}
+        ${it.price != null ? `<span class="price">${thb(it.price)}</span>` : `<span class="price">${t("inclusiveLabel", lang)}</span>`}
       </div>
       ${it.summary ? `<div class="summary">${escapeHtml(it.summary)}</div>` : ""}
       <div class="actions">

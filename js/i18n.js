@@ -21,7 +21,7 @@ export const UI = {
   servicesLabel: { de: "Services", en: "Services", th: "บริการ" },
   fromPricePrefix: { de: "ab", en: "from", th: "เริ่มต้น" },
   perDayUnit: { de: "Tag", en: "day", th: "วัน" },
-  servicesUnit: { de: "ab-Preise in CHF", en: "from-prices in CHF", th: "ราคาเริ่มต้น (CHF)" },
+  servicesUnit: { de: "ab-Preise in THB", en: "from-prices in THB", th: "ราคาเริ่มต้น (THB)" },
   inclusiveLabel: { de: "inklusive", en: "included", th: "รวมในราคา" },
   secNavRules: { de: "Hausregeln & WLAN", en: "House Rules & WiFi", th: "กฎของบ้านและไวไฟ" },
   secNavSurroundings: { de: "Umgebung & Empfehlungen", en: "Surroundings & Tips", th: "รอบบริเวณและคำแนะนำ" },

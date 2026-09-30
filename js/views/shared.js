@@ -39,14 +39,14 @@ export function renderBackHeader({ lang, labelKey, label, showBasket = false, ba
   </div>`;
 }
 
-export function chf(n) {
-  return `CHF ${Math.round(n)}`;
+export function thb(n) {
+  return `THB ${Math.round(n)}`;
 }
 
 export function abPrice(service, lang) {
   if (service.fromPrice == null) return t("inclusiveLabel", lang);
   const unit = service.priceUnit ? ` / ${t("perDayUnit", lang)}` : "";
-  return `${t("fromPricePrefix", lang)} ${chf(service.fromPrice)}${unit}`;
+  return `${t("fromPricePrefix", lang)} ${thb(service.fromPrice)}${unit}`;
 }
 
 export function fmtDateShort(dateStr, lang) {
@@ -149,7 +149,7 @@ export function renderOptionGroup(service, group, draft, lang) {
         return `<div class="choice-row ${isSel ? "selected" : ""}" data-action="${group.multi ? "opt-toggle" : "opt-set"}" data-key="${group.key}" data-value="${o.value}">
           <span class="label">${o.icon ? icon(o.icon, { size: 18 }) : ""}${escapeHtml(tf(o.label, lang))}</span>
           <span style="display:flex;align-items:center;gap:10px;">
-            ${o.price != null ? `<span class="price">${chf(o.price)}</span>` : ""}
+            ${o.price != null ? `<span class="price">${thb(o.price)}</span>` : ""}
             <span class="check-circle">${isSel ? icon("check", { size: 11 }) : ""}</span>
           </span>
         </div>`;
