@@ -1335,7 +1335,7 @@ function staffRow(u) {
   return `
     <div class="item-editor-row" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
       <div>
-        <div style="font-weight:700;color:var(--teal-950);">${escapeHtml(u.email)}${isSelf ? ` <span class="kanban-count">Du</span>` : ""}</div>
+        <div style="font-weight:700;color:var(--sbc-sand);">${escapeHtml(u.email)}${isSelf ? ` <span class="kanban-count">Du</span>` : ""}</div>
         <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;">
           ${u.invited ? "Eingeladen, noch nicht angemeldet" : "Zuletzt angemeldet: " + fmtDate(new Date(u.lastSignInAt).getTime())}
         </div>
