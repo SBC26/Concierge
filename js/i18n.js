@@ -12,9 +12,9 @@ export const UI = {
 
   // ---------- Start / Dashboard ----------
   greetingBody: {
-    de: "Schön, dass du kommst. Sag uns, was du brauchst — wir richten alles vor deiner Ankunft ein.",
-    en: "So glad you're coming. Tell us what you need — we'll have it ready before you arrive.",
-    th: "ยินดีที่ท่านจะมาเยือน แจ้งความต้องการของท่าน เราจะจัดเตรียมให้พร้อมก่อนท่านมาถึง",
+    de: "Schön, dass ihr hier seid. Sagt uns, was ihr braucht – wir kümmern uns darum.",
+    en: "So glad you're here. Tell us what you need – we'll take care of it.",
+    th: "ยินดีที่ท่านมาที่นี่ แจ้งความต้องการของท่าน เราจะดูแลให้",
   },
   bookingLabel: { de: "Deine Buchung", en: "Your booking", th: "การจองของท่าน" },
   detailsLink: { de: "Details", en: "Details", th: "รายละเอียด" },
