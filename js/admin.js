@@ -509,6 +509,32 @@ const PRICE_MODES = [
   { id: "inclusive", icon: "check", label: "Inklusive" },
   { id: "onRequest", icon: "circleHelp", label: "Auf Anfrage" },
 ];
+// Icons offered per option in a choice-list (shown left of the label on the
+// guest's service screen). Keys must exist in js/icons.js; "" = no icon.
+const OPTION_ICON_CHOICES = [
+  { id: "", label: "Kein Icon" },
+  { id: "bed", label: "Bett" },
+  { id: "brushCleaning", label: "Reinigung" },
+  { id: "droplets", label: "Wasser / Handtücher" },
+  { id: "shirt", label: "Wäsche" },
+  { id: "sparkles", label: "Besonderes" },
+  { id: "moon", label: "Nacht" },
+  { id: "sunrise", label: "Morgen" },
+  { id: "utensils", label: "Essen" },
+  { id: "utensilsCrossed", label: "Restaurant" },
+  { id: "flower2", label: "Wellness" },
+  { id: "carTaxiFront", label: "Fahrzeug" },
+  { id: "doorOpen", label: "Zugang" },
+  { id: "keyRound", label: "Schlüssel" },
+  { id: "bell", label: "Service / Klingel" },
+  { id: "shoppingBag", label: "Einkauf" },
+  { id: "mapPin", label: "Ort" },
+  { id: "users", label: "Personen" },
+  { id: "clock", label: "Zeit" },
+  { id: "phoneCall", label: "Anruf" },
+  { id: "circleHelp", label: "Sonstiges" },
+];
+
 // The set of option-group types js/views/shared.js's renderOptionGroup() /
 // serviceDetail.js actually know how to render and collect a value for —
 // keep in sync with that if a new type is ever added there.
@@ -1100,6 +1126,18 @@ function optionGroupEditor(service, si, group, gi) {
                 <button class="remove-btn" data-action="remove-option" data-si="${si}" data-gi="${gi}" data-oi="${oi}">${icon("x", { size: 13 })}</button>
               </div>
               ${triLang("Bezeichnung", `services.${si}.optionGroups.${gi}.options.${oi}.label`)}
+              ${group.type === "choice-list" ? `
+              <div class="num-row" style="margin-bottom:14px;">
+                <div class="field-mini">
+                  <label>Icon</label>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="color:var(--copper);display:flex;width:20px;justify-content:center;">${opt.icon ? icon(opt.icon, { size: 18 }) : ""}</span>
+                    <select data-bind="services.${si}.optionGroups.${gi}.options.${oi}.icon">
+                      ${OPTION_ICON_CHOICES.map((ic) => `<option value="${ic.id}" ${(opt.icon || "") === ic.id ? "selected" : ""}>${ic.label}</option>`).join("")}
+                    </select>
+                  </div>
+                </div>
+              </div>` : ""}
               <div class="plain-field" style="margin-bottom:0;">
                 <label>Preis</label>
                 <div class="font-swatches">
