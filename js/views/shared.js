@@ -5,6 +5,7 @@ import { t, tv, tf, LANGS } from "../i18n.js";
 import { icon } from "../icons.js";
 import { escapeHtml } from "../util.js";
 import { vaseLogo, wordmarkLogo } from "../logo.js";
+import { getRoom, changedRequestItemIds, openRequestCount } from "../store.js";
 
 function langSwitcher(lang) {
   return `<div class="lang-switch">${LANGS.map((l) => `<button class="lang-btn ${l === lang ? "active" : ""}" data-action="set-lang" data-lang="${l}">${l.toUpperCase()}</button>`).join("")}</div>`;
@@ -14,7 +15,28 @@ function basketLink(lang, count) {
   return `<button class="basket-link" data-action="nav" data-route="basket">${vaseLogo({ size: 18 })} ${t("basketSectionLabel", lang)} · ${count}</button>`;
 }
 
-// Brand chrome shown only on the Start screen.
+// "Meine Anfragen" button, centred in every header. Turns gold (with a soft
+// pulse) while a request line has a status the guest hasn't looked at yet.
+// `open-requests` (not plain `nav`) so it also works from the idle screens.
+export function requestsButton(lang) {
+  const room = getRoom();
+  const changed = changedRequestItemIds(room).length > 0;
+  const open = openRequestCount(room);
+  return `<button id="requests-btn" class="requests-btn ${changed ? "changed" : ""}" data-action="open-requests" aria-label="${escapeHtml(t("secNavRequests", lang))}">
+    ${icon("clipboardList", { size: 18 })}
+    <span class="requests-btn-label" lang="${lang}">${t("secNavRequests", lang)}</span>
+    ${changed ? `<span class="requests-btn-tag" lang="${lang}">${t("statusUpdatedTag", lang)}</span>` : open > 0 ? `<span class="requests-btn-count">${open}</span>` : ""}
+  </button>`;
+}
+
+// Re-renders just the button in place — the Fallblatt idle screen is mounted
+// once and never re-rendered wholesale, so it needs this to show live changes.
+export function patchRequestsButton(lang) {
+  const el = document.getElementById("requests-btn");
+  if (el) el.outerHTML = requestsButton(lang);
+}
+
+// Brand chrome shown on the Start screen and both idle screens.
 export function renderBrandHeader(lang) {
   return `
   <div class="topbar">
@@ -22,20 +44,26 @@ export function renderBrandHeader(lang) {
       <div class="brand-name" data-action="go-home" style="cursor:pointer;">
         ${lang === "th" ? `<div style="display:flex;align-items:center;gap:10px;">${vaseLogo({ size: 30 })}<span class="brand-word" lang="${lang}">${escapeHtml(t("hotelName", lang))}</span></div>` : wordmarkLogo({ height: 24 })}
       </div>
+      <div class="hdr-center">${requestsButton(lang)}</div>
       <div class="chip-row">${langSwitcher(lang)}</div>
     </div>
   </div>`;
 }
 
 // Back-header shown on every other screen: back arrow + section label,
-// optionally the basket link (used on tablet per the design spec).
+// requests button in the middle, optionally the basket link (tablet per the design spec).
 export function renderBackHeader({ lang, labelKey, label, showBasket = false, basketCount = 0 }) {
   return `
   <div class="back-header">
-    <button class="back-btn" data-action="go-home">${icon("arrowLeft", { size: 20 })}</button>
-    <span class="section-label">${escapeHtml(label || t(labelKey, lang))}</span>
-    ${showBasket && basketCount > 0 ? basketLink(lang, basketCount) : ""}
-    <div class="chip-row">${langSwitcher(lang)}</div>
+    <div class="hdr-left">
+      <button class="back-btn" data-action="go-home">${icon("arrowLeft", { size: 20 })}</button>
+      <span class="section-label">${escapeHtml(label || t(labelKey, lang))}</span>
+    </div>
+    <div class="hdr-center">${requestsButton(lang)}</div>
+    <div class="hdr-right">
+      ${showBasket && basketCount > 0 ? basketLink(lang, basketCount) : ""}
+      <div class="chip-row">${langSwitcher(lang)}</div>
+    </div>
   </div>`;
 }
 

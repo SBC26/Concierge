@@ -504,6 +504,34 @@ export function requestsForRoom(room) {
   const ids = new Set(state.requests.filter((r) => r.room === room).map((r) => r.id));
   return state.requestItems.filter((i) => ids.has(i.requestId)).sort((a, b) => b.createdAt - a.createdAt);
 }
+
+// Which status the guest has already seen per request line (device-local).
+// A line with no record counts as seen at its initial status, so a fresh
+// submission never lights up the header button — only a staff-side change does.
+const SEEN_KEY = "sbc_seen_status";
+function loadSeen() {
+  try {
+    return JSON.parse(localStorage.getItem(SEEN_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+export function changedRequestItemIds(room) {
+  const seen = loadSeen();
+  return requestsForRoom(room).filter((i) => i.status !== (seen[i.id] ?? "in_pruefung")).map((i) => i.id);
+}
+export function markRequestsSeen(room) {
+  const seen = loadSeen();
+  requestsForRoom(room).forEach((i) => { seen[i.id] = i.status; });
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+  } catch {
+    /* storage full/unavailable — highlight just reappears next time */
+  }
+}
+export function openRequestCount(room) {
+  return requestsForRoom(room).filter((i) => i.status !== "erledigt").length;
+}
 export function requestById(id) {
   return state.requests.find((r) => r.id === id) || null;
 }

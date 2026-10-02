@@ -27,6 +27,7 @@ export const UI = {
   secNavRules: { de: "Hausregeln & WLAN", en: "House Rules & WiFi", th: "กฎของบ้านและไวไฟ" },
   secNavSurroundings: { de: "Umgebung & Empfehlungen", en: "Surroundings & Tips", th: "รอบบริเวณและคำแนะนำ" },
   secNavRequests: { de: "Meine Anfragen", en: "My Requests", th: "คำขอของฉัน" },
+  statusUpdatedTag: { de: "Neuer Status", en: "New status", th: "สถานะใหม่" },
   openCountSuffix: { de: "offen", en: "open", th: "รอดำเนินการ" },
   contactTitle: { de: "Direkt schreiben", en: "Message us directly", th: "ส่งข้อความถึงเราโดยตรง" },
   contactRoleLabel: { de: "dein Concierge", en: "your concierge", th: "คอนเซียร์จของท่าน" },

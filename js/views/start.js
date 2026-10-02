@@ -13,10 +13,6 @@ export function startView({ lang, room, basketCount }) {
   const services = s.services;
   const grid = services.filter((sv) => sv.category !== "maintenance");
   const maintenance = services.find((sv) => sv.category === "maintenance");
-  const openRequests = s.requestItems.filter((i) => {
-    const req = s.requests.find((r) => r.id === i.requestId);
-    return req && req.room === room && i.status !== "erledigt";
-  }).length;
 
   return `
     ${renderBrandHeader(lang)}
@@ -48,10 +44,6 @@ export function startView({ lang, room, basketCount }) {
         </button>
         <button class="nav-row" data-action="nav" data-route="surroundings">
           <span lang="${lang}">${t("secNavSurroundings", lang)}</span>${icon("arrowRight", { size: 18 })}
-        </button>
-        <button class="nav-row" data-action="nav" data-route="myRequests">
-          <span lang="${lang}">${t("secNavRequests", lang)}</span>
-          ${openRequests > 0 ? `<span class="badge-gold">${openRequests} ${t("openCountSuffix", lang)}</span>` : icon("arrowRight", { size: 18 })}
         </button>
       </div>
 

@@ -1,15 +1,25 @@
 // Meine Anfragen — status tracking, one card per requested service line
 // (not per submission): three states, confirmed lines can carry fulfilment
 // details (e.g. a driver's name and number).
-import { getState, requestsForRoom } from "../store.js";
+import { getState, requestsForRoom, changedRequestItemIds, markRequestsSeen } from "../store.js";
 import { t, tv, tf } from "../i18n.js";
 import { icon } from "../icons.js";
 import { escapeHtml } from "../util.js";
 import { renderBackHeader } from "./shared.js";
 
+// Lines whose status changed since the guest last looked. Kept across
+// re-renders (language switch, realtime updates) while the screen stays open,
+// cleared by app.js when the guest leaves it.
+let highlighted = new Set();
+export function clearRequestHighlights() {
+  highlighted = new Set();
+}
+
 export function myRequestsView({ lang, room }) {
   const items = requestsForRoom(room);
   const conciergeName = getState().content.conciergeName;
+  changedRequestItemIds(room).forEach((id) => highlighted.add(id));
+  markRequestsSeen(room); // before the header renders, so the button is calm on this screen
   return `
     ${renderBackHeader({ lang, labelKey: "secNavRequests" })}
     <main>
@@ -29,7 +39,7 @@ export function myRequestsView({ lang, room }) {
 
 function requestCard(it, lang) {
   return `
-    <div class="request-card ${it.status === "erledigt" ? "done" : ""}">
+    <div class="request-card ${it.status === "erledigt" ? "done" : ""} ${highlighted.has(it.id) ? "changed" : ""}">
       <div class="row-between">
         <span class="title" lang="${lang}">${escapeHtml(tf(it.serviceName, lang))}</span>
         <span class="status-plaque ${it.status}">${statusLabel(it.status, lang)}</span>

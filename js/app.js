@@ -13,7 +13,8 @@ import {
 } from "./views/serviceDetail.js";
 import { basketView, doSubmitBasket } from "./views/basket.js";
 import { confirmationView, setConfirmation } from "./views/confirmation.js";
-import { myRequestsView } from "./views/myRequests.js";
+import { myRequestsView, clearRequestHighlights } from "./views/myRequests.js";
+import { patchRequestsButton } from "./views/shared.js";
 import { bookingDetailsView } from "./views/bookingDetails.js";
 import { houseRulesView } from "./views/houseRules.js";
 import { surroundingsView, setSurroundingsFilter } from "./views/surroundings.js";
@@ -33,6 +34,7 @@ let showIdle = true;
 let idleTimer = null;
 
 function navigate(r, mount = null) {
+  if (route === "myRequests" && r !== "myRequests") clearRequestHighlights();
   route = r;
   afterMount = mount;
   render();
@@ -47,6 +49,7 @@ function resetIdleTimer() {
 function enterIdle() {
   clearTimeout(idleTimer);
   showIdle = true;
+  clearRequestHighlights();
   route = "home";
   render();
 }
@@ -96,6 +99,7 @@ function render() {
   if (showIdle && getIdleMode(room) === "fallblatt") {
     if (!isFallblattBoardMounted(room)) mountFallblattBoard(app, { room, lang });
     else updateFallblattBoard({ room });
+    patchRequestsButton(lang); // the board itself isn't re-rendered, so refresh the header button live
     return;
   }
   // Not (or no longer) the fallblatt idle screen — make sure any previously
@@ -127,6 +131,12 @@ document.addEventListener("click", async (e) => {
       return exitIdle();
     case "nav":
       return navigate(target.dataset.route);
+    case "open-requests":
+      // Also reachable from the idle screens — leave idle first, otherwise
+      // render() would keep showing the postcard/board instead of the route.
+      showIdle = false;
+      resetIdleTimer();
+      return navigate("myRequests");
     case "go-home":
       // The brand logo also sits inside the idle screens (renderBrandHeader) —
       // tapping it there must exit idle like any other tap, not just set a
