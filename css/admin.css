@@ -210,6 +210,10 @@ button { font-family: inherit; }
 .service-card.expanded .service-card-chevron { transform: rotate(180deg); }
 .service-card-body { padding: 18px 20px 22px; border-top: 1px solid var(--line); }
 .service-card-body > *:first-child { margin-top: 0; }
+
+/* Mitarbeiter verwalten — accounts grouped by role */
+.staff-group + .staff-group { margin-top: 18px; }
+.staff-group-title { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: var(--tracking-wide); margin-bottom: 8px; }
 .add-btn:hover { background: rgba(201,169,114,0.14); }
 
 .plain-field { margin-bottom: 14px; }

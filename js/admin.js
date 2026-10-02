@@ -1305,9 +1305,29 @@ function viewStaff() {
           ? `<p class="muted">Lädt …</p>`
           : staffError
           ? `<p style="color:#a34a3a;font-size:13px;">${escapeHtml(staffError)}</p>`
-          : (staffList || []).map((u) => staffRow(u)).join("") || `<p class="muted">Keine Konten gefunden.</p>`
+          : staffGroupsHtml(staffList || []) || `<p class="muted">Keine Konten gefunden.</p>`
       }
     </div>`;
+}
+
+// Accounts grouped by role, in ROLE_OPTIONS order (staffList is already
+// sorted by e-mail, so each group stays alphabetical). A role not in
+// ROLE_OPTIONS still shows up, in a trailing "Sonstige" group, rather than
+// silently vanishing from the page.
+function staffGroupsHtml(list) {
+  const known = new Set(ROLE_OPTIONS.map((r) => r.id));
+  const groups = ROLE_OPTIONS.map((r) => ({ label: r.label, users: list.filter((u) => u.role === r.id) }));
+  groups.push({ label: "Sonstige", users: list.filter((u) => !known.has(u.role)) });
+  return groups
+    .filter((g) => g.users.length)
+    .map(
+      (g) => `
+      <div class="staff-group">
+        <div class="staff-group-title">${escapeHtml(g.label)} <span class="kanban-count">${g.users.length}</span></div>
+        ${g.users.map((u) => staffRow(u)).join("")}
+      </div>`
+    )
+    .join("");
 }
 
 function staffRow(u) {
