@@ -146,6 +146,14 @@ const ICON_PATHS = {
   <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
   <path d="M12 17h.01" />`,
   chevronUp: `<path d="m18 15-6-6-6 6" />`,
+  archive: `<rect width="20" height="5" x="2" y="3" rx="1" />
+  <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
+  <path d="M10 12h4" />`,
+  archiveRestore: `<rect width="20" height="5" x="2" y="3" rx="1" />
+  <path d="M4 8v11a2 2 0 0 0 2 2h2" />
+  <path d="M20 8v11a2 2 0 0 1-2 2h-2" />
+  <path d="m9 15 3-3 3 3" />
+  <path d="M12 12v9" />`,
 };
 
 export function icon(name, { size = 22, strokeWidth = 1.25, className = "" } = {}) {

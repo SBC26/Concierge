@@ -103,12 +103,12 @@ export const mapService = (r) => ({
   priceOnRequest: !!r.price_on_request,
   optionGroups: r.option_groups || [], sortOrder: r.sort_order,
 });
-const mapRequest = (r) => ({ id: r.id, requestCode: r.request_code, room: r.room, message: r.message, richtwertTotal: Number(r.richtwert_total || 0), createdAt: ts(r.created_at) });
+const mapRequest = (r) => ({ id: r.id, requestCode: r.request_code, room: r.room, guestName: r.guest_name || "", message: r.message, richtwertTotal: Number(r.richtwert_total || 0), createdAt: ts(r.created_at) });
 const mapRequestItem = (r) => ({
   id: r.id, requestId: r.request_id, serviceId: r.service_id, category: r.category,
   serviceName: r.service_name || {}, summary: r.summary, price: r.price == null ? null : Number(r.price),
   status: r.status, fulfillmentNote: r.fulfillment_note, createdAt: ts(r.created_at),
-  invoiceExcluded: !!r.invoice_excluded, invoicePaid: !!r.invoice_paid,
+  invoiceExcluded: !!r.invoice_excluded, invoicePaid: !!r.invoice_paid, archived: !!r.archived,
 });
 const mapInvoiceLine = (r) => ({
   id: r.id, room: r.room, description: r.description || "", amount: r.amount == null ? null : Number(r.amount),
@@ -517,7 +517,7 @@ export async function submitRequest({ room, message, lines }) {
   const total = lines.reduce((sum, l) => sum + (l.price || 0), 0);
   const { data: request, error } = await supabase
     .from("requests")
-    .insert({ request_code: requestCode, room, message: message || null, richtwert_total: total })
+    .insert({ request_code: requestCode, room, guest_name: state.bookings.find((b) => b.room === room)?.guestName || "", message: message || null, richtwert_total: total })
     .select()
     .single();
   if (error) {
@@ -553,6 +553,21 @@ export async function setRequestItemStatus(id, status, fulfillmentNote) {
     notify();
   }
   await updateRow("request_items", id, patch);
+}
+// Staff-side housekeeping of the request board: archived lines leave the
+// kanban (guest view and invoice are unaffected) and can be restored.
+export async function setRequestItemsArchived(ids, archived) {
+  const set = new Set(ids);
+  state.requestItems.forEach((i) => { if (set.has(i.id)) i.archived = archived; });
+  notify();
+  if (!ids.length) return;
+  const { error } = await supabase.from("request_items").update({ archived }).in("id", ids);
+  if (error) console.error("setRequestItemsArchived failed", error);
+}
+// Guest name as it was when the request was placed; falls back to the villa's current guest.
+export function requestGuestName(request) {
+  if (!request) return "";
+  return request.guestName || state.bookings.find((b) => b.room === request.room)?.guestName || "";
 }
 export function requestsForRoom(room) {
   const ids = new Set(state.requests.filter((r) => r.room === room).map((r) => r.id));

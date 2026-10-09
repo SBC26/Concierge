@@ -27,6 +27,8 @@ import {
   updateInvoiceExtra,
   guestDataCounts,
   resetVillaGuest,
+  setRequestItemsArchived,
+  requestGuestName,
 } from "./store.js";
 import { escapeHtml, FONT_OPTIONS, postcardHTML } from "./util.js";
 import { icon } from "./icons.js";
@@ -564,22 +566,40 @@ const ROLE_DASHBOARD_TITLE = {
   spa: ["Spa-Anfragen", "Anfragen aus den Villen in Echtzeit"],
 };
 
+// Archive view of the request board (toggle at the top of the page).
+let showArchive = false;
+
 function viewDashboard() {
   const role = currentRole();
   const allowedCategories = ROLE_CATEGORIES[role];
   const s = getState();
-  const items = [...s.requestItems]
+  const all = [...s.requestItems]
     .filter((i) => !allowedCategories || allowedCategories.includes(i.category))
     .sort((a, b) => b.createdAt - a.createdAt);
+  const items = all.filter((i) => !i.archived);
+  const archived = all.filter((i) => i.archived);
   const [title, sub] = ROLE_DASHBOARD_TITLE[role] || ROLE_DASHBOARD_TITLE.reception;
+  const toggle = `<div style="margin:0 0 14px;"><button class="pill-btn sm outline" data-action="toggle-archive">${icon(showArchive ? "arrowLeft" : "archive", { size: 13 })} ${showArchive ? "Zurück zu den Anfragen" : `Archiv (${archived.length})`}</button></div>`;
+
+  if (showArchive) {
+    return `
+      ${topHeader("Archiv", "Archivierte Anfragen — mit „Wiederherstellen“ kommen sie zurück aufs Board")}
+      ${toggle}
+      ${archived.length === 0 ? `<p class="muted">Das Archiv ist leer.</p>` : `<div class="archive-list">${archived.map((i) => requestChip(i)).join("")}</div>`}`;
+  }
   return `
     ${topHeader(title, sub)}
+    ${toggle}
     <div class="kanban">
       ${REQ_STATUSES.map((st) => {
         const list = items.filter((i) => i.status === st.id);
+        const bulk = st.id === "erledigt" && list.length > 0
+          ? `<button class="pill-btn sm outline" data-action="archive-done" style="margin-bottom:10px;">${icon("archive", { size: 13 })} Alle archivieren</button>`
+          : "";
         return `
         <div class="kanban-col">
           <h3>${st.label} <span class="kanban-count">${list.length}</span></h3>
+          ${bulk}
           ${list.length === 0 ? `<p class="muted" style="font-size:13px;">Keine Einträge</p>` : list.map((i) => requestChip(i)).join("")}
         </div>`;
       }).join("")}
@@ -587,12 +607,14 @@ function viewDashboard() {
 }
 
 function requestChip(item) {
-  const room = getState().requests.find((r) => r.id === item.requestId)?.room || "";
+  const request = getState().requests.find((r) => r.id === item.requestId);
+  const room = request?.room || "";
+  const guest = requestGuestName(request);
   const next = NEXT_REQ_STATUS[item.status];
   return `
     <div class="order-chip">
       <div class="row-between">
-        <span class="room-tag">${escapeHtml(room)}</span>
+        <span class="room-tag">${escapeHtml(room)}${guest ? ` · ${escapeHtml(guest)}` : ""}</span>
         <span class="type-tag">${CATEGORY_ICON[item.category] ? icon(CATEGORY_ICON[item.category], { size: 13 }) : ""} ${CATEGORY_LABEL[item.category] || item.category}</span>
       </div>
       <div class="items">${escapeHtml(tf(item.serviceName, "de"))}</div>
@@ -601,7 +623,10 @@ function requestChip(item) {
       <input class="fulfillment-input" placeholder="Notiz zur Erledigung (z. B. Fahrer &amp; Nummer)" value="${escapeAttr(item.fulfillmentNote || "")}" data-action="set-fulfillment" data-id="${item.id}" />
       <div class="actions">
         ${next ? `<button class="pill-btn sm" data-action="advance-request" data-id="${item.id}" data-next="${next}">${icon("arrowRight", { size: 13 })} ${REQ_STATUSES.find((s) => s.id === next).label}</button>` : ""}
-        ${item.status !== "in_pruefung" ? `<button class="pill-btn sm outline" data-action="advance-request" data-id="${item.id}" data-next="in_pruefung">↺</button>` : ""}
+        ${item.status !== "in_pruefung" && !item.archived ? `<button class="pill-btn sm outline" data-action="advance-request" data-id="${item.id}" data-next="in_pruefung">↺</button>` : ""}
+        ${item.archived
+          ? `<button class="pill-btn sm outline" data-action="unarchive-request" data-id="${item.id}">${icon("archiveRestore", { size: 13 })} Wiederherstellen</button>`
+          : item.status === "erledigt" ? `<button class="pill-btn sm outline" data-action="archive-request" data-id="${item.id}">${icon("archive", { size: 13 })} Archivieren</button>` : ""}
       </div>
     </div>`;
 }
@@ -1636,6 +1661,28 @@ root.addEventListener("click", async (e) => {
     const id = t.dataset.id;
     if (expandedInfoSections.has(id)) expandedInfoSections.delete(id);
     else expandedInfoSections.add(id);
+    return render();
+  }
+  if (action === "toggle-archive") {
+    showArchive = !showArchive;
+    return render();
+  }
+  if (action === "archive-request") {
+    await setRequestItemsArchived([t.dataset.id], true);
+    return render();
+  }
+  if (action === "unarchive-request") {
+    await setRequestItemsArchived([t.dataset.id], false);
+    return render();
+  }
+  if (action === "archive-done") {
+    const role = currentRole();
+    const allowed = ROLE_CATEGORIES[role];
+    const ids = getState().requestItems
+      .filter((i) => i.status === "erledigt" && !i.archived && (!allowed || allowed.includes(i.category)))
+      .map((i) => i.id);
+    if (!ids.length || !confirm(`${ids.length} erledigte Anfrage(n) ins Archiv verschieben?`)) return;
+    await setRequestItemsArchived(ids, true);
     return render();
   }
   if (action === "reset-villa") {
