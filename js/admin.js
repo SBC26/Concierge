@@ -509,7 +509,6 @@ const REQ_STATUSES = [
   { id: "in_pruefung", label: "In Prüfung" },
   { id: "bestaetigt", label: "Bestätigt" },
   { id: "erledigt", label: "Erledigt" },
-  { id: "storniert", label: "Storniert" },
 ];
 const CATEGORY_LABEL = {
   transfer: "Flughafen-Transfer", housekeeping: "Housekeeping", chef: "Private Chef", spa: "Spa & Massage",
@@ -571,8 +570,9 @@ const ROLE_DASHBOARD_TITLE = {
   spa: ["Spa-Anfragen", "Anfragen aus den Villen in Echtzeit"],
 };
 
-// Archive view of the request board (toggle at the top of the page).
-let showArchive = false;
+// The board shows the live statuses; cancelled and archived requests each
+// live in their own list, reached from the buttons above the board.
+let boardView = "board"; // board | cancelled | archive
 
 function viewDashboard() {
   const role = currentRole();
@@ -581,25 +581,43 @@ function viewDashboard() {
   const all = [...s.requestItems]
     .filter((i) => !allowedCategories || allowedCategories.includes(i.category))
     .sort((a, b) => b.createdAt - a.createdAt);
-  const items = all.filter((i) => !i.archived);
+  const active = all.filter((i) => !i.archived && i.status !== "storniert");
+  const cancelled = all.filter((i) => !i.archived && i.status === "storniert");
   const archived = all.filter((i) => i.archived);
   const [title, sub] = ROLE_DASHBOARD_TITLE[role] || ROLE_DASHBOARD_TITLE.reception;
-  const toggle = `<div style="margin:0 0 14px;"><button class="pill-btn sm outline" data-action="toggle-archive">${icon(showArchive ? "arrowLeft" : "archive", { size: 13 })} ${showArchive ? "Zurück zu den Anfragen" : `Archiv (${archived.length})`}</button></div>`;
 
-  if (showArchive) {
+  const navBtn = (view, iconName, label) =>
+    `<button class="pill-btn sm ${boardView === view ? "gold" : "outline"}" data-action="set-board-view" data-view="${view}">${icon(iconName, { size: 13 })} ${label}</button>`;
+  const toggle = `<div class="board-nav">
+    ${navBtn("board", "clipboardList", "Anfragen")}
+    ${navBtn("cancelled", "x", `Storniert (${cancelled.length})`)}
+    ${navBtn("archive", "archive", `Archiv (${archived.length})`)}
+  </div>`;
+
+  if (boardView === "archive") {
     return `
-      ${topHeader("Archiv", "Archivierte Anfragen — mit „Wiederherstellen“ kommen sie zurück aufs Board")}
+      ${topHeader("Archiv", "Archivierte Anfragen — mit „Wiederherstellen“ kommen sie zurück")}
       ${toggle}
       ${archived.length === 0 ? `<p class="muted">Das Archiv ist leer.</p>` : `<div class="archive-list">${archived.map((i) => requestChip(i)).join("")}</div>`}`;
+  }
+  if (boardView === "cancelled") {
+    const bulk = cancelled.length > 0
+      ? `<div style="margin:0 0 12px;"><button class="pill-btn sm outline" data-action="archive-done" data-status="storniert">${icon("archive", { size: 13 })} Alle archivieren</button></div>`
+      : "";
+    return `
+      ${topHeader("Stornierte Anfragen", "Mit ↺ wird eine Anfrage wieder auf „In Prüfung“ gesetzt")}
+      ${toggle}
+      ${bulk}
+      ${cancelled.length === 0 ? `<p class="muted">Keine stornierten Anfragen.</p>` : `<div class="archive-list">${cancelled.map((i) => requestChip(i)).join("")}</div>`}`;
   }
   return `
     ${topHeader(title, sub)}
     ${toggle}
     <div class="kanban">
       ${REQ_STATUSES.map((st) => {
-        const list = items.filter((i) => i.status === st.id);
-        const bulk = (st.id === "erledigt" || st.id === "storniert") && list.length > 0
-          ? `<button class="pill-btn sm outline" data-action="archive-done" data-status="${st.id}" style="margin-bottom:10px;">${icon("archive", { size: 13 })} Alle archivieren</button>`
+        const list = active.filter((i) => i.status === st.id);
+        const bulk = st.id === "erledigt" && list.length > 0
+          ? `<button class="pill-btn sm outline" data-action="archive-done" data-status="erledigt" style="margin-bottom:10px;">${icon("archive", { size: 13 })} Alle archivieren</button>`
           : "";
         return `
         <div class="kanban-col">
@@ -1695,8 +1713,8 @@ root.addEventListener("click", async (e) => {
     await setRequestItemStatus(item.id, "storniert");
     return render();
   }
-  if (action === "toggle-archive") {
-    showArchive = !showArchive;
+  if (action === "set-board-view") {
+    boardView = t.dataset.view;
     return render();
   }
   if (action === "archive-request") {

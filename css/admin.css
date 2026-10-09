@@ -320,8 +320,10 @@ select[data-action="staff-set-role"]:disabled { opacity: 0.55; }
 .archive-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
 
 /* Storniert + Zeitstempel im Anfragen-Board */
-/* Four status columns that wrap to 2x2 / 1 column instead of getting squeezed */
+/* Status columns wrap instead of getting squeezed */
 .kanban { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
 .pill-btn.outline.danger { border-color: rgba(224, 138, 118, 0.5); color: #e08a76; }
 .pill-btn.outline.danger:hover { border-color: #e08a76; background: rgba(163, 74, 58, 0.16); }
 .order-chip .meta.stamp { color: var(--sbc-gold-bright); opacity: 0.85; }
+
+.board-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
