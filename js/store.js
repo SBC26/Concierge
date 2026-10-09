@@ -109,6 +109,7 @@ const mapRequestItem = (r) => ({
   serviceName: r.service_name || {}, summary: r.summary, price: r.price == null ? null : Number(r.price),
   status: r.status, fulfillmentNote: r.fulfillment_note, createdAt: ts(r.created_at),
   invoiceExcluded: !!r.invoice_excluded, invoicePaid: !!r.invoice_paid, archived: !!r.archived,
+  confirmedAt: r.confirmed_at ? ts(r.confirmed_at) : null, doneAt: r.done_at ? ts(r.done_at) : null, cancelledAt: r.cancelled_at ? ts(r.cancelled_at) : null,
 });
 const mapInvoiceLine = (r) => ({
   id: r.id, room: r.room, description: r.description || "", amount: r.amount == null ? null : Number(r.amount),
@@ -548,6 +549,14 @@ export async function setRequestItemStatus(id, status, fulfillmentNote) {
   if (fulfillmentNote !== undefined) patch.fulfillment_note = fulfillmentNote;
   const item = state.requestItems.find((i) => i.id === id);
   if (item) {
+    if (item.status !== status) {
+      // Mirrors the DB trigger (request_items_status_timestamps) so the UI shows the stamp instantly.
+      const now = Date.now();
+      if (status === "bestaetigt") Object.assign(item, { confirmedAt: now, doneAt: null, cancelledAt: null });
+      else if (status === "erledigt") Object.assign(item, { confirmedAt: item.confirmedAt ?? now, doneAt: now, cancelledAt: null });
+      else if (status === "storniert") item.cancelledAt = now;
+      else Object.assign(item, { confirmedAt: null, doneAt: null, cancelledAt: null });
+    }
     item.status = status;
     if (fulfillmentNote !== undefined) item.fulfillmentNote = fulfillmentNote;
     notify();
@@ -599,7 +608,7 @@ export function markRequestsSeen(room) {
   }
 }
 export function openRequestCount(room) {
-  return requestsForRoom(room).filter((i) => i.status !== "erledigt").length;
+  return requestsForRoom(room).filter((i) => i.status !== "erledigt" && i.status !== "storniert").length;
 }
 // ---------- invoice (Rechnung) per villa ----------
 // Manual lines (stay, extras the admin types in) live in invoice_lines;
@@ -610,8 +619,15 @@ export function invoiceLinesForRoom(room) {
     .filter((l) => l.room === room)
     .sort((a, b) => (a.sortOrder - b.sortOrder) || (a.createdAt - b.createdAt));
 }
+// Cancelled requests never appear; requests still under review are listed
+// but carry no amount until staff confirm them (see isInvoiceBillable).
 export function invoiceExtrasForRoom(room) {
-  return requestsForRoom(room).filter((i) => !i.invoiceExcluded).sort((a, b) => a.createdAt - b.createdAt);
+  return requestsForRoom(room)
+    .filter((i) => !i.invoiceExcluded && i.status !== "storniert")
+    .sort((a, b) => a.createdAt - b.createdAt);
+}
+export function isInvoiceBillable(item) {
+  return item.status === "bestaetigt" || item.status === "erledigt";
 }
 // Lines without an amount yet ("auf Anfrage" extras) count as pending, not as 0.
 export function invoiceTotals(room) {
@@ -624,7 +640,7 @@ export function invoiceTotals(room) {
     if (isPaid) paid += amount;
   };
   invoiceLinesForRoom(room).forEach((l) => add(l.amount, l.paid));
-  invoiceExtrasForRoom(room).forEach((i) => add(i.price, i.invoicePaid));
+  invoiceExtrasForRoom(room).filter(isInvoiceBillable).forEach((i) => add(i.price, i.invoicePaid));
   return { total, paid, open: total - paid, pending };
 }
 export async function addInvoiceLine(room) {

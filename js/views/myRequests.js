@@ -39,16 +39,32 @@ export function myRequestsView({ lang, room }) {
 
 function requestCard(it, lang) {
   return `
-    <div class="request-card ${it.status === "erledigt" ? "done" : ""} ${highlighted.has(it.id) ? "changed" : ""}">
+    <div class="request-card ${it.status === "erledigt" ? "done" : ""} ${it.status === "storniert" ? "cancelled" : ""} ${highlighted.has(it.id) ? "changed" : ""}">
       <div class="row-between">
         <span class="title" lang="${lang}">${escapeHtml(tf(it.serviceName, lang))}</span>
         <span class="status-plaque ${it.status}">${statusLabel(it.status, lang)}</span>
       </div>
       ${it.summary ? `<div class="summary">${escapeHtml(it.summary)}</div>` : ""}
       ${it.fulfillmentNote ? `<div class="extra">${escapeHtml(it.fulfillmentNote)}</div>` : ""}
+      ${stamps(it, lang)}
     </div>`;
 }
 
 function statusLabel(status, lang) {
-  return status === "bestaetigt" ? t("statusBestaetigt", lang) : status === "erledigt" ? t("statusErledigt", lang) : t("statusInPruefung", lang);
+  return status === "bestaetigt" ? t("statusBestaetigt", lang)
+    : status === "erledigt" ? t("statusErledigt", lang)
+    : status === "storniert" ? t("statusStorniert", lang)
+    : t("statusInPruefung", lang);
+}
+
+// When staff confirmed / completed / cancelled the line — shown quietly under the card.
+function stamps(it, lang) {
+  const locale = lang === "de" ? "de-CH" : lang === "th" ? "th-TH" : "en-GB";
+  const fmt = (ts) => new Date(ts).toLocaleString(locale, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const rows = [
+    it.confirmedAt && ["confirmedOn", it.confirmedAt],
+    it.doneAt && ["doneOn", it.doneAt],
+    it.cancelledAt && ["cancelledOn", it.cancelledAt],
+  ].filter(Boolean);
+  return rows.map(([key, ts]) => `<div class="stamp"><span lang="${lang}">${t(key, lang)}</span> ${fmt(ts)}</div>`).join("");
 }

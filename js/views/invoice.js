@@ -1,7 +1,7 @@
 // Rechnung — read-only statement for the villa's stay: lines the admin typed
 // in, plus every concierge service the guest requested (listed automatically).
 // Each line is marked paid/open; the open balance closes the page.
-import { getState, invoiceLinesForRoom, invoiceExtrasForRoom, invoiceTotals } from "../store.js";
+import { getState, invoiceLinesForRoom, invoiceExtrasForRoom, invoiceTotals, isInvoiceBillable } from "../store.js";
 import { t, tf } from "../i18n.js";
 import { escapeHtml } from "../util.js";
 import { renderBackHeader } from "./shared.js";
@@ -21,8 +21,10 @@ export function invoiceView({ lang, room }) {
   const rows = [
     ...lines.map((l) => lineRow({ lang, title: l.description, amount: l.amount, paid: l.paid })),
     ...extras.map((i) => lineRow({
-      lang, title: tf(i.serviceName, lang), sub: i.summary, amount: i.price, paid: i.invoicePaid,
-      review: i.status === "in_pruefung",
+      lang, title: tf(i.serviceName, lang), sub: i.summary,
+      // Only confirmed services carry an amount on the invoice.
+      amount: isInvoiceBillable(i) ? i.price : null, paid: isInvoiceBillable(i) && i.invoicePaid,
+      review: !isInvoiceBillable(i),
     })),
   ].join("");
 
@@ -53,7 +55,9 @@ export function invoiceView({ lang, room }) {
 
 function lineRow({ lang, title, sub, amount, paid, review }) {
   const tag =
-    amount == null
+    review
+      ? `<span class="invoice-tag pending" lang="${lang}">${t("invoiceInReviewTag", lang)}</span>`
+      : amount == null
       ? `<span class="invoice-tag pending" lang="${lang}">${t("invoicePendingTag", lang)}</span>`
       : paid
         ? `<span class="invoice-tag paid" lang="${lang}">${t("invoicePaidTag", lang)}</span>`
@@ -61,7 +65,7 @@ function lineRow({ lang, title, sub, amount, paid, review }) {
   return `
     <div class="invoice-line ${paid && amount != null ? "is-paid" : ""}">
       <div class="invoice-desc">
-        <div class="invoice-title" lang="${lang}">${escapeHtml(title || "—")}${review ? ` <span class="invoice-review" lang="${lang}">· ${t("invoiceInReviewTag", lang)}</span>` : ""}</div>
+        <div class="invoice-title" lang="${lang}">${escapeHtml(title || "—")}</div>
         ${sub ? `<div class="invoice-sub">${escapeHtml(sub)}</div>` : ""}
       </div>
       <div class="invoice-amount">

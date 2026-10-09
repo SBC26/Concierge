@@ -92,6 +92,10 @@ export const UI = {
   statusInPruefung: { de: "In Prüfung", en: "In review", th: "กำลังตรวจสอบ" },
   statusBestaetigt: { de: "Bestätigt", en: "Confirmed", th: "ยืนยันแล้ว" },
   statusErledigt: { de: "Erledigt", en: "Done", th: "เสร็จสิ้น" },
+  statusStorniert: { de: "Storniert", en: "Cancelled", th: "ยกเลิกแล้ว" },
+  confirmedOn: { de: "Bestätigt am", en: "Confirmed on", th: "ยืนยันเมื่อ" },
+  doneOn: { de: "Erledigt am", en: "Done on", th: "เสร็จสิ้นเมื่อ" },
+  cancelledOn: { de: "Storniert am", en: "Cancelled on", th: "ยกเลิกเมื่อ" },
   myRequestsEmpty: { de: "Du hast noch keine Anfragen gestellt.", en: "You haven't sent any requests yet.", th: "ท่านยังไม่มีคำขอ" },
   myRequestsClosing: {
     de: "Etwas stimmt nicht? Schreib {name} direkt. Er antwortet meist innerhalb einer Stunde.",

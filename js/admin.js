@@ -20,6 +20,7 @@ import {
   onNewRequest,
   invoiceLinesForRoom,
   invoiceExtrasForRoom,
+  isInvoiceBillable,
   invoiceTotals,
   addInvoiceLine,
   updateInvoiceLine,
@@ -429,6 +430,9 @@ async function handleMoveService(si, dir) {
   await Promise.all(arr.map((sv, i) => updateRow("services", sv.id, { sort_order: i })));
 }
 
+function fmtStamp(ts) {
+  return new Date(ts).toLocaleString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
 function fmtTime(ts) {
   const d = new Date(ts);
   return d.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
@@ -505,6 +509,7 @@ const REQ_STATUSES = [
   { id: "in_pruefung", label: "In Prüfung" },
   { id: "bestaetigt", label: "Bestätigt" },
   { id: "erledigt", label: "Erledigt" },
+  { id: "storniert", label: "Storniert" },
 ];
 const CATEGORY_LABEL = {
   transfer: "Flughafen-Transfer", housekeeping: "Housekeeping", chef: "Private Chef", spa: "Spa & Massage",
@@ -593,8 +598,8 @@ function viewDashboard() {
     <div class="kanban">
       ${REQ_STATUSES.map((st) => {
         const list = items.filter((i) => i.status === st.id);
-        const bulk = st.id === "erledigt" && list.length > 0
-          ? `<button class="pill-btn sm outline" data-action="archive-done" style="margin-bottom:10px;">${icon("archive", { size: 13 })} Alle archivieren</button>`
+        const bulk = (st.id === "erledigt" || st.id === "storniert") && list.length > 0
+          ? `<button class="pill-btn sm outline" data-action="archive-done" data-status="${st.id}" style="margin-bottom:10px;">${icon("archive", { size: 13 })} Alle archivieren</button>`
           : "";
         return `
         <div class="kanban-col">
@@ -620,13 +625,17 @@ function requestChip(item) {
       <div class="items">${escapeHtml(tf(item.serviceName, "de"))}</div>
       ${item.summary ? `<div class="note">${icon("scrollText", { size: 13 })} ${escapeHtml(item.summary)}</div>` : ""}
       <div class="meta">${fmtTime(item.createdAt)}${item.price != null ? ` · THB ${item.price.toFixed(0)}` : ""}</div>
+      ${[["Bestätigt", item.confirmedAt], ["Erledigt", item.doneAt], ["Storniert", item.cancelledAt]]
+        .filter(([, ts]) => ts)
+        .map(([label, ts]) => `<div class="meta stamp">${label}: ${fmtStamp(ts)}</div>`).join("")}
       <input class="fulfillment-input" placeholder="Notiz zur Erledigung (z. B. Fahrer &amp; Nummer)" value="${escapeAttr(item.fulfillmentNote || "")}" data-action="set-fulfillment" data-id="${item.id}" />
       <div class="actions">
         ${next ? `<button class="pill-btn sm" data-action="advance-request" data-id="${item.id}" data-next="${next}">${icon("arrowRight", { size: 13 })} ${REQ_STATUSES.find((s) => s.id === next).label}</button>` : ""}
         ${item.status !== "in_pruefung" && !item.archived ? `<button class="pill-btn sm outline" data-action="advance-request" data-id="${item.id}" data-next="in_pruefung">↺</button>` : ""}
         ${item.archived
           ? `<button class="pill-btn sm outline" data-action="unarchive-request" data-id="${item.id}">${icon("archiveRestore", { size: 13 })} Wiederherstellen</button>`
-          : item.status === "erledigt" ? `<button class="pill-btn sm outline" data-action="archive-request" data-id="${item.id}">${icon("archive", { size: 13 })} Archivieren</button>` : ""}
+          : item.status === "erledigt" || item.status === "storniert" ? `<button class="pill-btn sm outline" data-action="archive-request" data-id="${item.id}">${icon("archive", { size: 13 })} Archivieren</button>` : ""}
+        ${item.status === "in_pruefung" || item.status === "bestaetigt" ? `<button class="pill-btn sm outline danger" data-action="cancel-request" data-id="${item.id}">${icon("x", { size: 13 })} Stornieren</button>` : ""}
       </div>
     </div>`;
 }
@@ -1245,7 +1254,7 @@ function invoiceEditor(b) {
       ${extras.length === 0 ? `<p class="rules-hint">Keine Zusatzleistungen gebucht.</p>` : extras.map((i) => `
         <div class="item-editor-row">
           <div class="row-top">
-            <span><strong>${escapeHtml(tf(i.serviceName, "de"))}</strong>${i.status === "in_pruefung" ? ' <span class="muted">· in Prüfung</span>' : ""}${i.summary ? `<br><span class="muted">${escapeHtml(i.summary)}</span>` : ""}</span>
+            <span><strong>${escapeHtml(tf(i.serviceName, "de"))}</strong>${!isInvoiceBillable(i) ? ' <span class="muted">· wartet auf Bestätigung — noch nicht auf der Rechnung</span>' : ""}${i.summary ? `<br><span class="muted">${escapeHtml(i.summary)}</span>` : ""}</span>
             <button class="remove-btn" data-action="inv-remove-extra" data-id="${i.id}" title="Von Rechnung entfernen">${icon("x", { size: 13 })}</button>
           </div>
           <div class="invoice-row-grid no-text">
@@ -1678,6 +1687,14 @@ root.addEventListener("click", async (e) => {
     await updateBookingRow(b.room, { greeting_form: b.greetingForm });
     return;
   }
+  if (action === "cancel-request") {
+    const item = getState().requestItems.find((i) => i.id === t.dataset.id);
+    if (!item) return;
+    const name = tf(item.serviceName, "de");
+    if (!confirm(`Anfrage „${name}“ stornieren?\n\nSie wird beim Gast als „Storniert“ angezeigt und erscheint nicht mehr auf der Rechnung. Mit ↺ lässt sie sich wieder aktivieren.`)) return;
+    await setRequestItemStatus(item.id, "storniert");
+    return render();
+  }
   if (action === "toggle-archive") {
     showArchive = !showArchive;
     return render();
@@ -1691,12 +1708,13 @@ root.addEventListener("click", async (e) => {
     return render();
   }
   if (action === "archive-done") {
+    const status = t.dataset.status === "storniert" ? "storniert" : "erledigt";
     const role = currentRole();
     const allowed = ROLE_CATEGORIES[role];
     const ids = getState().requestItems
-      .filter((i) => i.status === "erledigt" && !i.archived && (!allowed || allowed.includes(i.category)))
+      .filter((i) => i.status === status && !i.archived && (!allowed || allowed.includes(i.category)))
       .map((i) => i.id);
-    if (!ids.length || !confirm(`${ids.length} erledigte Anfrage(n) ins Archiv verschieben?`)) return;
+    if (!ids.length || !confirm(`${ids.length} ${status === "storniert" ? "stornierte" : "erledigte"} Anfrage(n) ins Archiv verschieben?`)) return;
     await setRequestItemsArchived(ids, true);
     return render();
   }
