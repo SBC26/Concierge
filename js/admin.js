@@ -619,7 +619,7 @@ function requestChip(item) {
   return `
     <div class="order-chip">
       <div class="row-between">
-        <span class="room-tag">${escapeHtml(room)}${guest ? ` · ${escapeHtml(guest)}` : ""}</span>
+        <span class="room-tag"><span class="villa">${escapeHtml(room)}</span>${guest ? `<span class="guest">${escapeHtml(guest)}</span>` : ""}</span>
         <span class="type-tag">${CATEGORY_ICON[item.category] ? icon(CATEGORY_ICON[item.category], { size: 13 }) : ""} ${CATEGORY_LABEL[item.category] || item.category}</span>
       </div>
       <div class="items">${escapeHtml(tf(item.serviceName, "de"))}</div>
