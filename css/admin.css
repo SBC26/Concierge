@@ -293,3 +293,17 @@ select[data-action="staff-set-role"]:disabled { opacity: 0.55; }
   .qr-card { break-inside: avoid; border: 1px solid #ccc; background: #fff; }
   .qr-room { color: #000; }
 }
+
+/* Rechnung (inside the booking card) */
+.invoice-editor { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.invoice-editor-title { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sbc-gold-bright); margin-bottom: 6px; }
+.invoice-row-grid { display: grid; grid-template-columns: 1fr 140px auto; gap: 14px; align-items: end; }
+.invoice-row-grid.no-text { grid-template-columns: 140px auto; justify-content: start; }
+.invoice-editor .row-top .muted { color: var(--ink-soft); font-size: 12px; }
+.invoice-totals { margin-top: 16px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--sbc-wattblau); }
+.invoice-totals > div { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; color: var(--sbc-sand); }
+.invoice-totals > div.open { margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 16px; font-weight: 700; color: var(--sbc-gold-bright); }
+@media (max-width: 720px) { .invoice-row-grid, .invoice-row-grid.no-text { grid-template-columns: 1fr; } }
+.invoice-row-grid label { display: block; font-size: 11px; color: var(--ink-soft); font-weight: 600; }
+.invoice-row-grid .field-mini input { width: 100%; background: var(--sbc-wattblau-soft); border: 1px solid var(--line); color: var(--sbc-sand); border-radius: var(--radius-btn); padding: 7px 9px; font-size: 13px; margin-top: 3px; font-family: inherit; }
+.invoice-row-grid .font-swatches { margin-top: 3px; }

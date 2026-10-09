@@ -18,6 +18,13 @@ import {
   getIdleMode,
   setRequestItemStatus,
   onNewRequest,
+  invoiceLinesForRoom,
+  invoiceExtrasForRoom,
+  invoiceTotals,
+  addInvoiceLine,
+  updateInvoiceLine,
+  removeInvoiceLine,
+  updateInvoiceExtra,
 } from "./store.js";
 import { escapeHtml, FONT_OPTIONS, postcardHTML } from "./util.js";
 import { icon } from "./icons.js";
@@ -1174,6 +1181,61 @@ function fmtBookingRange(b) {
   return `${short(b.arrival)}–${short(b.departure)}`;
 }
 
+// ---------- INVOICE EDITOR (inside the booking card) ----------
+const fmtThb = (n) => `THB ${Math.round(n).toLocaleString("de-CH")}`;
+
+function paidToggle(kind, id, paid) {
+  return `<div class="font-swatches" style="gap:6px;">
+    <button class="font-swatch ${!paid ? "active" : ""}" data-action="inv-set-paid" data-kind="${kind}" data-id="${id}" data-value="false" style="min-width:70px;padding:6px 10px;"><div class="label" style="margin:0;">Offen</div></button>
+    <button class="font-swatch ${paid ? "active" : ""}" data-action="inv-set-paid" data-kind="${kind}" data-id="${id}" data-value="true" style="min-width:70px;padding:6px 10px;"><div class="label" style="margin:0;">Bezahlt</div></button>
+  </div>`;
+}
+
+function invoiceEditor(b) {
+  const lines = invoiceLinesForRoom(b.room);
+  const extras = invoiceExtrasForRoom(b.room);
+  const totals = invoiceTotals(b.room);
+  return `
+    <div class="invoice-editor">
+      <div class="invoice-editor-title">Rechnung</div>
+      <p class="rules-hint" style="margin:0 0 10px;">Positionen mit Text und Betrag in THB. „Bezahlt“ oder „Offen“ je Position — der Gast sieht die Rechnung unter „Deine Buchung → Rechnung ansehen“.</p>
+      ${lines.map((l, n) => `
+        <div class="item-editor-row">
+          <div class="row-top">
+            <span class="muted">Position ${n + 1}</span>
+            <button class="remove-btn" data-action="inv-remove-line" data-id="${l.id}" title="Position löschen">${icon("x", { size: 13 })}</button>
+          </div>
+          <div class="invoice-row-grid">
+            <div class="plain-field" style="margin:0;"><label>Rechnungstext</label><input value="${escapeAttr(l.description)}" data-action="inv-line-desc" data-id="${l.id}" placeholder="z. B. Übernachtung Villa (2 Nächte)" /></div>
+            <div class="field-mini"><label>Betrag (THB)</label><input type="number" step="1" value="${l.amount ?? ""}" data-action="inv-line-amount" data-id="${l.id}" /></div>
+            <div class="field-mini"><label>Status</label>${paidToggle("line", l.id, l.paid)}</div>
+          </div>
+        </div>`).join("")}
+      <button class="add-btn" data-action="inv-add-line" data-room="${escapeAttr(b.room)}">+ Position hinzufügen</button>
+
+      <div class="invoice-editor-title" style="margin-top:18px;">Zusatzleistungen aus der Concierge-App</div>
+      <p class="rules-hint" style="margin:0 0 10px;">Werden automatisch aufgelistet. Betrag anpassen/ergänzen oder per ✕ von der Rechnung entfernen (die Anfrage selbst bleibt bestehen).</p>
+      ${extras.length === 0 ? `<p class="rules-hint">Keine Zusatzleistungen gebucht.</p>` : extras.map((i) => `
+        <div class="item-editor-row">
+          <div class="row-top">
+            <span><strong>${escapeHtml(tf(i.serviceName, "de"))}</strong>${i.status === "in_pruefung" ? ' <span class="muted">· in Prüfung</span>' : ""}${i.summary ? `<br><span class="muted">${escapeHtml(i.summary)}</span>` : ""}</span>
+            <button class="remove-btn" data-action="inv-remove-extra" data-id="${i.id}" title="Von Rechnung entfernen">${icon("x", { size: 13 })}</button>
+          </div>
+          <div class="invoice-row-grid no-text">
+            <div class="field-mini"><label>Betrag (THB)${i.price == null ? " – offen" : ""}</label><input type="number" step="1" value="${i.price ?? ""}" data-action="inv-extra-amount" data-id="${i.id}" placeholder="auf Anfrage" /></div>
+            <div class="field-mini"><label>Status</label>${paidToggle("extra", i.id, i.invoicePaid)}</div>
+          </div>
+        </div>`).join("")}
+
+      <div class="invoice-totals">
+        <div><span>Gesamtbetrag</span><span>${fmtThb(totals.total)}</span></div>
+        <div><span>Bereits bezahlt</span><span>${fmtThb(totals.paid)}</span></div>
+        <div class="open"><span>Offener Betrag</span><span>${fmtThb(totals.open)}</span></div>
+        ${totals.pending > 0 ? `<p class="rules-hint">${totals.pending} Position(en) ohne Betrag sind noch nicht eingerechnet.</p>` : ""}
+      </div>
+    </div>`;
+}
+
 // Same collapsed-by-default accordion as Services/Hotel-Infos — five villas
 // each with ~15 fields was a very long page to scroll past just to find one.
 function bookingCard(b, i, expanded) {
@@ -1219,6 +1281,7 @@ function bookingCard(b, i, expanded) {
           <div class="plain-field"><label>Wetter-Hinweis</label><input value="${escapeAttr(b.weatherNote)}" data-bind="bookings.${i}.weatherNote" placeholder="z. B. Hua Hin · 31° · sonnig" /></div>
         </div>
         <div class="plain-field"><label>Adresse</label><input value="${escapeAttr(b.address)}" data-bind="bookings.${i}.address" /></div>
+        ${invoiceEditor(b)}
       </div>` : ""}
     </div>`;
 }
@@ -1568,6 +1631,26 @@ root.addEventListener("click", async (e) => {
     else expandedInfoSections.add(id);
     return render();
   }
+  if (action === "inv-add-line") {
+    await addInvoiceLine(t.dataset.room);
+    return render();
+  }
+  if (action === "inv-remove-line") {
+    if (!confirm("Diese Rechnungsposition löschen?")) return;
+    await removeInvoiceLine(t.dataset.id);
+    return render();
+  }
+  if (action === "inv-remove-extra") {
+    if (!confirm("Diese Leistung von der Rechnung entfernen? (Die Anfrage des Gastes bleibt bestehen.)")) return;
+    await updateInvoiceExtra(t.dataset.id, { invoiceExcluded: true });
+    return render();
+  }
+  if (action === "inv-set-paid") {
+    const paid = t.dataset.value === "true";
+    if (t.dataset.kind === "line") await updateInvoiceLine(t.dataset.id, { paid });
+    else await updateInvoiceExtra(t.dataset.id, { invoicePaid: paid });
+    return render();
+  }
   if (action === "toggle-booking") {
     const room = t.dataset.room;
     if (expandedBookings.has(room)) expandedBookings.delete(room);
@@ -1695,6 +1778,18 @@ root.addEventListener("change", (e) => {
     const id = fulfillmentInput.dataset.id;
     const current = getState().requestItems.find((i) => i.id === id)?.status || "in_pruefung";
     return setRequestItemStatus(id, current, fulfillmentInput.value);
+  }
+  const invInput = e.target.closest("[data-action^='inv-']");
+  if (invInput && invInput.tagName === "INPUT") {
+    const id = invInput.dataset.id;
+    const num = invInput.value.trim() === "" ? null : Number(invInput.value);
+    const kind = invInput.dataset.action;
+    const done = kind === "inv-line-desc" ? updateInvoiceLine(id, { description: invInput.value.trim() })
+      : kind === "inv-line-amount" ? updateInvoiceLine(id, { amount: Number.isNaN(num) ? null : num })
+      : kind === "inv-extra-amount" ? updateInvoiceExtra(id, { price: Number.isNaN(num) ? null : num })
+      : null;
+    if (done) done.then(() => render());
+    return;
   }
   const el = e.target.closest("[data-bind]");
   if (!el) return;

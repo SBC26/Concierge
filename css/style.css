@@ -407,6 +407,26 @@ textarea.field-input { min-height: 88px; padding: 14px 16px; resize: vertical; l
 hr.sep { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
 :focus-visible { outline: 2px solid var(--sbc-gold); outline-offset: 2px; }
 
+/* Rechnung */
+.invoice { margin: 20px var(--gutter) 0; max-width: 760px; }
+.invoice-head { display: flex; justify-content: space-between; padding: 0 0 10px; border-bottom: 1px solid var(--sbc-gold); font-family: var(--font-sub); font-size: 11px; letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--sbc-gold); }
+.invoice-line { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.invoice-desc { flex: 1; min-width: 0; }
+.invoice-title { font-size: 15px; color: var(--sbc-sand); line-height: 1.4; }
+.invoice-review { color: var(--sbc-copper); font-size: 12px; }
+.invoice-sub { font-size: 13px; color: var(--sbc-copper); margin-top: 3px; line-height: 1.5; }
+.invoice-amount { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; white-space: nowrap; }
+.invoice-amount-num { font-size: 15px; color: var(--sbc-sand); font-variant-numeric: tabular-nums; }
+.invoice-line.is-paid .invoice-title, .invoice-line.is-paid .invoice-amount-num { color: var(--sbc-copper); }
+.invoice-tag { font-family: var(--font-sub); font-weight: 500; font-size: 10px; letter-spacing: var(--tracking-wide); text-transform: uppercase; padding: 3px 10px; border-radius: var(--radius-pill); }
+.invoice-tag.paid { color: var(--sbc-copper); border: 1px solid var(--line); }
+.invoice-tag.open { border: 1px solid var(--sbc-gold); color: var(--sbc-gold); }
+.invoice-tag.pending { color: var(--sbc-copper); font-style: italic; text-transform: none; letter-spacing: 0; padding: 3px 0; }
+.invoice-sums { margin-top: 18px; }
+.invoice-sum { display: flex; justify-content: space-between; padding: 8px 0; font-size: 15px; color: var(--sbc-sand); font-variant-numeric: tabular-nums; }
+.invoice-sum.open { margin-top: 8px; padding: 16px 18px; border-radius: var(--radius-md); background: var(--sbc-wattblau-soft); border: 1px solid var(--sbc-gold); font-family: var(--font-display); font-size: 24px; color: var(--sbc-gold-bright); }
+.invoice-sum.open.settled { border-color: var(--line); color: var(--sbc-copper); }
+.invoice-note { margin-top: 14px; font-size: 13px; line-height: 1.6; color: var(--sbc-copper); }
 .empty-state { text-align: center; padding: 60px 24px; color: var(--sbc-copper); }
 .empty-state .big { color: var(--sbc-gold); margin-bottom: 12px; display: flex; justify-content: center; }
 

@@ -33,6 +33,7 @@ let state = {
   services: [],
   requests: [],
   requestItems: [],
+  invoiceLines: [],
 };
 const listeners = new Set();
 const newOrderListeners = new Set();
@@ -107,13 +108,18 @@ const mapRequestItem = (r) => ({
   id: r.id, requestId: r.request_id, serviceId: r.service_id, category: r.category,
   serviceName: r.service_name || {}, summary: r.summary, price: r.price == null ? null : Number(r.price),
   status: r.status, fulfillmentNote: r.fulfillment_note, createdAt: ts(r.created_at),
+  invoiceExcluded: !!r.invoice_excluded, invoicePaid: !!r.invoice_paid,
+});
+const mapInvoiceLine = (r) => ({
+  id: r.id, room: r.room, description: r.description || "", amount: r.amount == null ? null : Number(r.amount),
+  paid: !!r.paid, sortOrder: r.sort_order, createdAt: ts(r.created_at),
 });
 
 const byOrder = (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
 
 // ---------- bootstrap: load everything once, then subscribe to live changes ----------
 export async function initStore() {
-  const [content, rooms, menuCategories, menu, housekeepingOptions, spaServices, taxiOptions, excursions, orders, postcards, bookings, services, requests, requestItems] = await Promise.all([
+  const [content, rooms, menuCategories, menu, housekeepingOptions, spaServices, taxiOptions, excursions, orders, postcards, bookings, services, requests, requestItems, invoiceLines] = await Promise.all([
     supabase.from("hotel_content").select("*").eq("id", 1).single(),
     supabase.from("rooms").select("*").order("sort_order"),
     supabase.from("menu_categories").select("*").order("sort_order"),
@@ -128,6 +134,7 @@ export async function initStore() {
     supabase.from("services").select("*").order("sort_order"),
     supabase.from("requests").select("*").order("created_at", { ascending: false }),
     supabase.from("request_items").select("*").order("created_at", { ascending: false }),
+    supabase.from("invoice_lines").select("*"),
   ]);
 
   state.content = mapContent(content.data);
@@ -146,6 +153,7 @@ export async function initStore() {
   state.services = (services.data || []).map(mapService);
   state.requests = (requests.data || []).map(mapRequest);
   state.requestItems = (requestItems.data || []).map(mapRequestItem);
+  state.invoiceLines = (invoiceLines.data || []).map(mapInvoiceLine);
 
   basket = loadBasket();
 
@@ -271,6 +279,11 @@ function subscribeRealtime() {
     })
     .on("postgres_changes", { event: "DELETE", schema: "public", table: "request_items" }, (p) => {
       removeLocal(state.requestItems, p.old.id);
+      notify();
+    })
+    .on("postgres_changes", { event: "*", schema: "public", table: "invoice_lines" }, (p) => {
+      if (p.eventType === "DELETE") removeLocal(state.invoiceLines, p.old.id);
+      else upsertLocal(state.invoiceLines, mapInvoiceLine(p.new));
       notify();
     })
     .subscribe();
@@ -531,6 +544,63 @@ export function markRequestsSeen(room) {
 }
 export function openRequestCount(room) {
   return requestsForRoom(room).filter((i) => i.status !== "erledigt").length;
+}
+// ---------- invoice (Rechnung) per villa ----------
+// Manual lines (stay, extras the admin types in) live in invoice_lines;
+// everything the guest ordered through the concierge app is listed
+// automatically from request_items, unless staff removed it (invoice_excluded).
+export function invoiceLinesForRoom(room) {
+  return state.invoiceLines
+    .filter((l) => l.room === room)
+    .sort((a, b) => (a.sortOrder - b.sortOrder) || (a.createdAt - b.createdAt));
+}
+export function invoiceExtrasForRoom(room) {
+  return requestsForRoom(room).filter((i) => !i.invoiceExcluded).sort((a, b) => a.createdAt - b.createdAt);
+}
+// Lines without an amount yet ("auf Anfrage" extras) count as pending, not as 0.
+export function invoiceTotals(room) {
+  let total = 0;
+  let paid = 0;
+  let pending = 0;
+  const add = (amount, isPaid) => {
+    if (amount == null) { pending++; return; }
+    total += amount;
+    if (isPaid) paid += amount;
+  };
+  invoiceLinesForRoom(room).forEach((l) => add(l.amount, l.paid));
+  invoiceExtrasForRoom(room).forEach((i) => add(i.price, i.invoicePaid));
+  return { total, paid, open: total - paid, pending };
+}
+export async function addInvoiceLine(room) {
+  const sortOrder = invoiceLinesForRoom(room).reduce((m, l) => Math.max(m, l.sortOrder), -1) + 1;
+  const row = await insertRow("invoice_lines", { room, description: "", amount: null, paid: false, sort_order: sortOrder });
+  if (row) {
+    upsertLocal(state.invoiceLines, mapInvoiceLine(row));
+    notify();
+  }
+}
+export async function updateInvoiceLine(id, patch) {
+  const line = state.invoiceLines.find((l) => l.id === id);
+  if (!line) return;
+  Object.assign(line, patch);
+  notify();
+  const col = { description: "description", amount: "amount", paid: "paid" };
+  await updateRow("invoice_lines", id, Object.fromEntries(Object.entries(patch).map(([k, v]) => [col[k], v])));
+}
+export async function removeInvoiceLine(id) {
+  removeLocal(state.invoiceLines, id);
+  notify();
+  await deleteRow("invoice_lines", id);
+}
+// Auto-listed concierge extras: staff can set the final amount (price),
+// mark it paid, or take it off the invoice (the request itself stays).
+export async function updateInvoiceExtra(id, patch) {
+  const item = state.requestItems.find((i) => i.id === id);
+  if (!item) return;
+  Object.assign(item, patch);
+  notify();
+  const col = { price: "price", invoicePaid: "invoice_paid", invoiceExcluded: "invoice_excluded" };
+  await updateRow("request_items", id, Object.fromEntries(Object.entries(patch).map(([k, v]) => [col[k], v])));
 }
 export function requestById(id) {
   return state.requests.find((r) => r.id === id) || null;

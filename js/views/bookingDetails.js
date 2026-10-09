@@ -41,7 +41,7 @@ export function bookingDetailsView({ lang, room }) {
         <button class="nav-row" data-action="open-maps" data-address="${escapeHtml(booking.address)}">
           <span lang="${lang}">${t("arrivalNavLabel", lang)}</span>${icon("arrowRight", { size: 18 })}
         </button>
-        <button class="nav-row" data-action="coming-soon">
+        <button class="nav-row" data-action="nav" data-route="invoice">
           <span lang="${lang}">${t("invoiceNavLabel", lang)}</span>${icon("arrowRight", { size: 18 })}
         </button>
       </div>

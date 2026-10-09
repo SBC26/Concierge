@@ -15,6 +15,7 @@ import { basketView, doSubmitBasket } from "./views/basket.js";
 import { confirmationView, setConfirmation } from "./views/confirmation.js";
 import { myRequestsView, clearRequestHighlights } from "./views/myRequests.js";
 import { patchRequestsButton } from "./views/shared.js";
+import { invoiceView } from "./views/invoice.js";
 import { bookingDetailsView } from "./views/bookingDetails.js";
 import { houseRulesView } from "./views/houseRules.js";
 import { surroundingsView, setSurroundingsFilter } from "./views/surroundings.js";
@@ -77,6 +78,7 @@ const views = {
   confirmation: () => confirmationView({ lang }),
   myRequests: () => myRequestsView({ lang, room }),
   bookingDetails: () => bookingDetailsView({ lang, room }),
+  invoice: () => invoiceView({ lang, room }),
   houseRules: () => houseRulesView({ lang }),
   surroundings: () => surroundingsView({ lang }),
 };
