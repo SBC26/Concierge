@@ -16,6 +16,11 @@ export const UI = {
     en: "So glad you're here. Tell us what you need – we'll take care of it.",
     th: "ยินดีที่ท่านมาที่นี่ แจ้งความต้องการของท่าน เราจะดูแลให้",
   },
+  greetingBodyDu: {
+    de: "Schön, dass du hier bist. Sag uns, was du brauchst – wir kümmern uns darum.",
+    en: "So glad you're here. Tell us what you need – we'll take care of it.",
+    th: "ยินดีที่ท่านมาที่นี่ แจ้งความต้องการของท่าน เราจะดูแลให้",
+  },
   bookingLabel: { de: "Deine Buchung", en: "Your booking", th: "การจองของท่าน" },
   detailsLink: { de: "Details", en: "Details", th: "รายละเอียด" },
   servicesLabel: { de: "Services", en: "Services", th: "บริการ" },

@@ -95,7 +95,7 @@ const mapBooking = (r) => ({
   room: r.room, bookingCode: r.booking_code, guestName: r.guest_name,
   arrival: r.arrival, departure: r.departure, guestsAdults: r.guests_adults, guestsChildren: r.guests_children,
   bedrooms: r.bedrooms, sizeSqm: r.size_sqm, feature: r.feature, cleaningSchedule: r.cleaning_schedule,
-  depositStatus: r.deposit_status, address: r.address, weatherNote: r.weather_note, updatedAt: ts(r.updated_at),
+  depositStatus: r.deposit_status, greetingForm: r.greeting_form || "ihr", address: r.address, weatherNote: r.weather_note, updatedAt: ts(r.updated_at),
 });
 export const mapService = (r) => ({
   id: r.id, category: r.category, name: r.name, shortDesc: r.short_desc,

@@ -1304,6 +1304,13 @@ function bookingCard(b, i, expanded) {
         <div class="editor-grid">
           <div class="plain-field"><label>Ausstattungs-Highlight</label><input value="${escapeAttr(b.feature)}" data-bind="bookings.${i}.feature" placeholder="z. B. Gartenpool" /></div>
           <div class="plain-field"><label>Reinigungsplan</label><input value="${escapeAttr(b.cleaningSchedule)}" data-bind="bookings.${i}.cleaningSchedule" placeholder="z. B. Mo &amp; Do, 10:00" /></div>
+          <div class="plain-field"><label>Anrede im Begrüssungstext</label>
+            <div class="font-swatches" style="gap:6px;">
+              <button class="font-swatch ${b.greetingForm === "du" ? "active" : ""}" data-action="set-greeting-form" data-room="${escapeAttr(b.room)}" data-value="du" style="min-width:70px;padding:6px 10px;"><div class="label" style="margin:0;">Du</div></button>
+              <button class="font-swatch ${b.greetingForm !== "du" ? "active" : ""}" data-action="set-greeting-form" data-room="${escapeAttr(b.room)}" data-value="ihr" style="min-width:70px;padding:6px 10px;"><div class="label" style="margin:0;">Ihr</div></button>
+            </div>
+            <p class="rules-hint">Du: „Schön, dass du hier bist …“ · Ihr: „Schön, dass ihr hier seid …“ (z. B. für Familien)</p>
+          </div>
           <div class="plain-field"><label>Kaution</label><input value="${escapeAttr(b.depositStatus)}" data-bind="bookings.${i}.depositStatus" placeholder="z. B. hinterlegt" /></div>
           <div class="plain-field"><label>Wetter-Hinweis</label><input value="${escapeAttr(b.weatherNote)}" data-bind="bookings.${i}.weatherNote" placeholder="z. B. Hua Hin · 31° · sonnig" /></div>
         </div>
@@ -1662,6 +1669,14 @@ root.addEventListener("click", async (e) => {
     if (expandedInfoSections.has(id)) expandedInfoSections.delete(id);
     else expandedInfoSections.add(id);
     return render();
+  }
+  if (action === "set-greeting-form") {
+    const b = getState().bookings.find((x) => x.room === t.dataset.room);
+    if (!b) return;
+    b.greetingForm = t.dataset.value === "du" ? "du" : "ihr";
+    render();
+    await updateBookingRow(b.room, { greeting_form: b.greetingForm });
+    return;
   }
   if (action === "toggle-archive") {
     showArchive = !showArchive;

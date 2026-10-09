@@ -20,7 +20,7 @@ export function startView({ lang, room, basketCount }) {
       <div class="hero-grid">
         <div class="greeting">
           <h2 lang="${lang}">${escapeHtml(guestGreeting(booking, lang))}</h2>
-          <p lang="${lang}">${t("greetingBody", lang)}</p>
+          <p lang="${lang}">${t(booking?.greetingForm === "du" ? "greetingBodyDu" : "greetingBody", lang)}</p>
         </div>
         ${booking ? bookingCard(booking, lang) : ""}
       </div>

@@ -22,6 +22,7 @@
   --line: rgba(201, 169, 114, 0.3);
   --error: #a34a3a;
 
+  /* Fiona/Corporative is now reserved for the greeting ("Hallo <Name>") — everything else is Montserrat. */
   --font-display: "Corporative", "Italiana", "Marcellus", "Cormorant Garamond", serif;
   --font-sub: "Montserrat", "Helvetica Neue", Arial, sans-serif;
   --font-body: "Montserrat", "Helvetica Neue", Arial, sans-serif;
@@ -53,11 +54,11 @@ button { font-family: inherit; }
 p { margin: 0; }
 
 h1, h2, h3, .display {
-  font-family: var(--font-display);
-  font-weight: 400;
+  font-family: var(--font-body);
+  font-weight: 500;
   margin: 0;
-  letter-spacing: var(--tracking-display);
-  line-height: 1.08;
+  letter-spacing: -0.005em;
+  line-height: 1.15;
 }
 
 .rule { display: block; height: 1px; width: 64px; background: var(--sbc-gold); }
@@ -94,7 +95,7 @@ h1, h2, h3, .display {
 .brand-mark { color: var(--sbc-gold); display: flex; }
 .brand-name { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .brand-kicker { font-family: var(--font-sub); font-size: 10px; font-weight: 600; letter-spacing: var(--tracking-wide); color: var(--sbc-gold); }
-.brand-word { font-family: var(--font-display); font-size: 26px; color: var(--sbc-gold-bright); letter-spacing: var(--tracking-display); }
+.brand-word { font-family: var(--font-body); font-weight: 500; font-size: 22px; color: var(--sbc-gold-bright); letter-spacing: var(--tracking-display); }
 .brand-tagline { font-size: 12px; letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--sbc-copper); }
 
 .chip-row { display: flex; gap: 8px; align-items: center; justify-content: center; }
@@ -165,7 +166,7 @@ h1, h2, h3, .display {
 .basket-link .icon { color: var(--sbc-gold); }
 
 .page-title { padding: 0 var(--gutter); margin-top: 10px; }
-.page-title h1 { font-size: 24px; color: var(--sbc-gold-bright); }
+.page-title h1 { font-size: 22px; color: var(--sbc-gold-bright); }
 .page-title .sub { color: var(--sbc-copper); font-size: 13px; margin-top: 4px; }
 
 /* Back header (all screens except Start) */
@@ -191,7 +192,7 @@ main { flex: 1; padding: 0 0 40px; }
 
 /* ---------- Start / Dashboard ---------- */
 .greeting { padding: 32px var(--gutter) 0; display: flex; flex-direction: column; gap: 10px; }
-.greeting h2 { font-size: 34px; color: var(--sbc-gold-bright); }
+.greeting h2 { font-family: var(--font-display); font-weight: 400; letter-spacing: var(--tracking-display); line-height: 1.08; font-size: 34px; color: var(--sbc-gold-bright); }
 .greeting p { color: var(--sbc-sand); font-size: 15px; line-height: 1.7; }
 
 .booking-card {
@@ -204,7 +205,7 @@ main { flex: 1; padding: 0 0 40px; }
 }
 .booking-card .row-between .section-label { margin: 0; }
 .booking-card a, .booking-card .link { color: var(--sbc-gold); font-size: 13px; text-decoration: none; cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; }
-.booking-card .villa-name { font-family: var(--font-display); font-size: 25px; color: var(--sbc-gold-bright); }
+.booking-card .villa-name { font-family: var(--font-body); font-weight: 500; font-size: 22px; color: var(--sbc-gold-bright); }
 .booking-card .meta { font-size: 14px; color: var(--sbc-sand); }
 .booking-card hr { border: none; border-top: 1px solid var(--line); margin: 0; width: 100%; }
 .booking-card .weather { font-size: 14px; color: var(--sbc-copper); }
@@ -244,7 +245,7 @@ main { flex: 1; padding: 0 0 40px; }
 
 /* ---------- Title block (service detail, confirmation, etc.) ---------- */
 .title-block { padding: 32px var(--gutter) 0; display: flex; flex-direction: column; gap: 12px; }
-.title-block h1 { font-size: 32px; color: var(--sbc-gold-bright); line-height: 1.06; }
+.title-block h1 { font-size: 28px; color: var(--sbc-gold-bright); line-height: 1.15; }
 .title-block .desc { font-size: 15px; line-height: 1.7; color: var(--sbc-sand); }
 
 .pill-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
@@ -345,13 +346,13 @@ textarea.field-input { min-height: 88px; padding: 14px 16px; resize: vertical; l
   display: flex; flex-direction: column; gap: 8px;
 }
 .total-card .row-between { font-size: 15px; color: var(--sbc-sand); }
-.total-card .row-between b { color: var(--sbc-gold); font-family: var(--font-display); font-size: 22px; font-weight: 400; }
+.total-card .row-between b { color: var(--sbc-gold); font-family: var(--font-body); font-size: 20px; font-weight: 500; }
 .total-card .fine-print { font-size: 12px; color: var(--sbc-copper); line-height: 1.6; }
 
 /* ---------- Confirmation ---------- */
 .confirm-wrap { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 32px; gap: 22px; }
 .confirm-wrap .check-mark { color: var(--sbc-gold); }
-.confirm-wrap h1 { font-size: 36px; color: var(--sbc-gold-bright); }
+.confirm-wrap h1 { font-size: 30px; color: var(--sbc-gold-bright); }
 .confirm-wrap .body { font-size: 15px; line-height: 1.7; color: var(--sbc-sand); max-width: 46ch; }
 .confirm-summary { text-align: left; width: 100%; max-width: 340px; padding: 18px; background: var(--sbc-wattblau-soft); border: 1px solid var(--line); border-radius: var(--radius-md); }
 .confirm-summary .section-label { display: block; margin-bottom: 6px; }
@@ -395,7 +396,7 @@ textarea.field-input { min-height: 88px; padding: 14px 16px; resize: vertical; l
 
 /* ---------- Umgebung ---------- */
 .place-card { margin: 0 var(--gutter) 14px; padding: 18px; background: var(--sbc-wattblau-soft); border: 1px solid var(--line); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 8px; }
-.place-card .row-between .name { font-family: var(--font-display); font-size: 24px; color: var(--sbc-gold-bright); }
+.place-card .row-between .name { font-family: var(--font-body); font-weight: 500; font-size: 20px; color: var(--sbc-gold-bright); }
 .place-card .row-between .time { font-size: 13px; color: var(--sbc-gold); }
 .place-card .desc { font-size: 15px; line-height: 1.7; color: var(--sbc-sand); }
 .place-card .action { align-self: flex-start; background: none; border: none; padding: 0; color: var(--sbc-gold); font-size: 14px; text-decoration: underline; cursor: pointer; font-family: inherit; }
@@ -424,7 +425,7 @@ hr.sep { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
 .invoice-tag.pending { color: var(--sbc-copper); font-style: italic; text-transform: none; letter-spacing: 0; padding: 3px 0; }
 .invoice-sums { margin-top: 18px; }
 .invoice-sum { display: flex; justify-content: space-between; padding: 8px 0; font-size: 15px; color: var(--sbc-sand); font-variant-numeric: tabular-nums; }
-.invoice-sum.open { margin-top: 8px; padding: 16px 18px; border-radius: var(--radius-md); background: var(--sbc-wattblau-soft); border: 1px solid var(--sbc-gold); font-family: var(--font-display); font-size: 24px; color: var(--sbc-gold-bright); }
+.invoice-sum.open { margin-top: 8px; padding: 16px 18px; border-radius: var(--radius-md); background: var(--sbc-wattblau-soft); border: 1px solid var(--sbc-gold); font-family: var(--font-body); font-weight: 500; font-size: 20px; color: var(--sbc-gold-bright); }
 .invoice-sum.open.settled { border-color: var(--line); color: var(--sbc-copper); }
 .invoice-note { margin-top: 14px; font-size: 13px; line-height: 1.6; color: var(--sbc-copper); }
 .empty-state { text-align: center; padding: 60px 24px; color: var(--sbc-copper); }
@@ -466,7 +467,7 @@ hr.sep { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
 
   .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; padding: 44px var(--gutter) 0; align-items: start; }
   .detail-grid .title-block, .detail-grid .form-stack { padding: 0; }
-  .detail-grid .title-block h1 { font-size: 46px; }
+  .detail-grid .title-block h1 { font-size: 38px; }
   .form-footer.bar { border-top: 1px solid var(--line); padding-top: 28px; flex-direction: row; align-items: center; justify-content: space-between; }
   .form-footer.bar .fine-print { text-align: left; max-width: 38ch; margin: 0; order: 1; }
   .form-footer.bar .btn-primary, .form-footer.bar .btn-secondary { width: auto; padding: 0 32px; order: 2; }
@@ -497,7 +498,7 @@ hr.sep { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
   .split-left .split-footer a, .split-left .split-footer button { background: none; border: none; color: var(--sbc-sand); font-size: 14px; cursor: pointer; font-family: inherit; padding: 0; }
   .split-right { padding: 40px 36px; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
   .split-right .title-block { padding: 0; }
-  .split-right .title-block h1 { font-size: 40px; }
+  .split-right .title-block h1 { font-size: 34px; }
   .split-right .title-block .desc { max-width: 60ch; }
   .split-right .detail-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px; }
   .split-right .form-footer.bar { margin-top: auto; }
@@ -594,7 +595,7 @@ main.fb-idle { flex: 1; min-height: 0; display: flex; flex-direction: column; al
 .setup-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--sbc-wattblau-deep); }
 .setup-card { width: 100%; max-width: 380px; background: var(--sbc-wattblau); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 36px 30px; }
 .setup-logo { display: flex; justify-content: center; margin-bottom: 10px; }
-.setup-card h2 { font-family: var(--font-display); font-size: 24px; color: var(--sbc-gold-bright); text-align: center; margin-bottom: 8px; }
+.setup-card h2 { font-family: var(--font-body); font-weight: 500; font-size: 22px; color: var(--sbc-gold-bright); text-align: center; margin-bottom: 8px; }
 .setup-card > p.muted { text-align: center; margin-bottom: 20px; line-height: 1.6; color: var(--sbc-copper); }
 .setup-card .field { margin-bottom: 14px; }
 .setup-card label { display: block; font-size: 13px; color: var(--sbc-copper); margin-bottom: 6px; }
