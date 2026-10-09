@@ -1812,7 +1812,32 @@ supabase.auth.onAuthStateChange((_event, newSession) => {
   render();
 });
 initStore();
+// Dashboard and Buchungen follow live data (new guest requests, invoice
+// lines changed from another device). Other editor pages are left alone —
+// they're full of text fields and a re-render would eat what's being typed.
+// On Buchungen, a re-render is held back while a field has focus and done
+// as soon as the field is left.
+const LIVE_PAGES = new Set(["dashboard", "bookings"]);
+let renderPending = false;
+const fieldFocused = () => {
+  const el = document.activeElement;
+  return !!el && root.contains(el) && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
+};
 subscribe(() => {
-  if (page === "dashboard" || !isReady()) render();
+  if (!isReady()) return render();
+  if (!LIVE_PAGES.has(page)) return;
+  if (page === "bookings" && fieldFocused()) {
+    renderPending = true;
+    return;
+  }
+  render();
+});
+root.addEventListener("focusout", () => {
+  if (!renderPending) return;
+  setTimeout(() => {
+    if (fieldFocused()) return;
+    renderPending = false;
+    if (LIVE_PAGES.has(page)) render();
+  }, 150);
 });
 render();
