@@ -25,6 +25,8 @@ import {
   updateInvoiceLine,
   removeInvoiceLine,
   updateInvoiceExtra,
+  guestDataCounts,
+  resetVillaGuest,
 } from "./store.js";
 import { escapeHtml, FONT_OPTIONS, postcardHTML } from "./util.js";
 import { icon } from "./icons.js";
@@ -1282,6 +1284,11 @@ function bookingCard(b, i, expanded) {
         </div>
         <div class="plain-field"><label>Adresse</label><input value="${escapeAttr(b.address)}" data-bind="bookings.${i}.address" /></div>
         ${invoiceEditor(b)}
+        <div class="reset-guest">
+          <div class="invoice-editor-title">Neuer Gast</div>
+          <p class="rules-hint" style="margin:0 0 10px;">Beim Check-out: löscht die Daten des bisherigen Gasts in dieser Villa (Gastname, Buchungsdaten, Anfragen, Rechnung, Grüsse), damit ein neuer Gast erfasst werden kann. Die Villa selbst (Adresse, Ausstattung, Reinigungsplan) bleibt.</p>
+          <button class="danger-btn" data-action="reset-villa" data-room="${escapeAttr(b.room)}">${icon("trash2", { size: 14 })} Gast &amp; Daten dieser Villa löschen</button>
+        </div>
       </div>` : ""}
     </div>`;
 }
@@ -1629,6 +1636,29 @@ root.addEventListener("click", async (e) => {
     const id = t.dataset.id;
     if (expandedInfoSections.has(id)) expandedInfoSections.delete(id);
     else expandedInfoSections.add(id);
+    return render();
+  }
+  if (action === "reset-villa") {
+    const room = t.dataset.room;
+    const c = guestDataCounts(room);
+    const ok = confirm(
+      `Alle Gast-Daten von „${room}“ unwiderruflich löschen?
+
+` +
+      `• Gastname und Buchungsdaten (Buchungsnummer, An-/Abreise, Gäste, Kaution)
+` +
+      `• ${c.requests} Anfrage(n) des Gasts (samt Zusatzleistungen auf der Rechnung)
+` +
+      `• ${c.invoiceLines} manuelle Rechnungsposition(en)
+` +
+      `• ${c.postcards} gesendete Gruss-Nachricht(en)
+
+` +
+      `Danach kannst du einen neuen Gast erfassen.`
+    );
+    if (!ok) return;
+    const err = await resetVillaGuest(room);
+    if (err) alert(`Löschen nicht vollständig möglich (${err}). Bitte erneut versuchen oder Anmeldung/Berechtigung prüfen.`);
     return render();
   }
   if (action === "inv-add-line") {

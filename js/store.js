@@ -417,6 +417,47 @@ export async function updateBookingRow(room, patch) {
   const { error } = await supabase.from("bookings").update(patch).eq("room", room);
   if (error) console.error("updateBookingRow failed", error);
 }
+// What a departing guest leaves behind in one villa — shown in the admin's
+// confirm dialog before anything is deleted.
+export function guestDataCounts(room) {
+  return {
+    requests: state.requests.filter((r) => r.room === room).length,
+    invoiceLines: state.invoiceLines.filter((l) => l.room === room).length,
+    postcards: state.postcards.filter((p) => p.room === room).length,
+  };
+}
+// Clears everything guest-specific for one villa so the next guest can be
+// entered: requests (their lines go with them), invoice lines, greetings sent
+// to this villa, and the guest fields of the booking. The villa's own facts
+// (rooms, size, address, cleaning plan, …) and "all villas" greetings stay.
+// Returns an error message, or null on success.
+export async function resetVillaGuest(room) {
+  const steps = [
+    ["Anfragen", supabase.from("requests").delete().eq("room", room)],
+    ["Rechnungspositionen", supabase.from("invoice_lines").delete().eq("room", room)],
+    ["Grüsse", supabase.from("postcards").delete().eq("room", room)],
+    ["Buchung", supabase.from("bookings").update({
+      guest_name: "", booking_code: "", arrival: null, departure: null,
+      guests_adults: 2, guests_children: 0, deposit_status: "",
+    }).eq("room", room)],
+  ];
+  for (const [label, query] of steps) {
+    const { error } = await query;
+    if (error) {
+      console.error(`resetVillaGuest (${label}) failed`, error);
+      return `${label}: ${error.message}`;
+    }
+  }
+  const requestIds = new Set(state.requests.filter((r) => r.room === room).map((r) => r.id));
+  state.requestItems = state.requestItems.filter((i) => !requestIds.has(i.requestId));
+  state.requests = state.requests.filter((r) => r.room !== room);
+  state.invoiceLines = state.invoiceLines.filter((l) => l.room !== room);
+  state.postcards = state.postcards.filter((p) => p.room !== room);
+  const b = state.bookings.find((x) => x.room === room);
+  if (b) Object.assign(b, { guestName: "", bookingCode: "", arrival: null, departure: null, guestsAdults: 2, guestsChildren: 0, depositStatus: "" });
+  notify();
+  return null;
+}
 // rooms.number (not id) is the primary key, same reasoning as updateBookingRow.
 export async function updateRoomRow(number, patch) {
   const { error } = await supabase.from("rooms").update(patch).eq("number", number);

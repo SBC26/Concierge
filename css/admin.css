@@ -307,3 +307,8 @@ select[data-action="staff-set-role"]:disabled { opacity: 0.55; }
 .invoice-row-grid label { display: block; font-size: 11px; color: var(--ink-soft); font-weight: 600; }
 .invoice-row-grid .field-mini input { width: 100%; background: var(--sbc-wattblau-soft); border: 1px solid var(--line); color: var(--sbc-sand); border-radius: var(--radius-btn); padding: 7px 9px; font-size: 13px; margin-top: 3px; font-family: inherit; }
 .invoice-row-grid .font-swatches { margin-top: 3px; }
+
+/* Neuer Gast / Villa zurücksetzen */
+.reset-guest { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.danger-btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid #a34a3a; background: rgba(163, 74, 58, 0.14); color: #e08a76; border-radius: var(--radius-sm); padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.danger-btn:hover { background: rgba(163, 74, 58, 0.26); }
