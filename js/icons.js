@@ -154,6 +154,46 @@ const ICON_PATHS = {
   <path d="M20 8v11a2 2 0 0 1-2 2h-2" />
   <path d="m9 15 3-3 3 3" />
   <path d="M12 12v9" />`,
+  sun: `<circle cx="12" cy="12" r="4" />
+  <path d="M12 2v2" />
+  <path d="M12 20v2" />
+  <path d="m4.93 4.93 1.41 1.41" />
+  <path d="m17.66 17.66 1.41 1.41" />
+  <path d="M2 12h2" />
+  <path d="M20 12h2" />
+  <path d="m6.34 17.66-1.41 1.41" />
+  <path d="m19.07 4.93-1.41 1.41" />`,
+  cloudSun: `<path d="M12 2v2" />
+  <path d="m4.93 4.93 1.41 1.41" />
+  <path d="M20 12h2" />
+  <path d="m19.07 4.93-1.41 1.41" />
+  <path d="M15.947 12.65a4 4 0 0 0-5.925-4.128" />
+  <path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z" />`,
+  cloud: `<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />`,
+  cloudFog: `<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+  <path d="M16 17H7" />
+  <path d="M17 21H9" />`,
+  cloudDrizzle: `<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+  <path d="M8 19v1" />
+  <path d="M8 14v1" />
+  <path d="M16 19v1" />
+  <path d="M16 14v1" />
+  <path d="M12 21v1" />
+  <path d="M12 16v1" />`,
+  cloudRain: `<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+  <path d="M16 14v6" />
+  <path d="M8 14v6" />
+  <path d="M12 16v6" />`,
+  cloudLightning: `<path d="M6 16.326A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 .5 8.973" />
+  <path d="m13 12-3 5h4l-3 5" />`,
+  sunset: `<path d="M12 10V2" />
+  <path d="m4.93 10.93 1.41 1.41" />
+  <path d="M2 18h2" />
+  <path d="M20 18h2" />
+  <path d="m19.07 10.93-1.41 1.41" />
+  <path d="M22 22H2" />
+  <path d="m16 6-4 4-4-4" />
+  <path d="M16 18a4 4 0 0 0-8 0" />`,
 };
 
 export function icon(name, { size = 22, strokeWidth = 1.25, className = "" } = {}) {

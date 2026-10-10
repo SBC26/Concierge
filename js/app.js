@@ -19,6 +19,7 @@ import { invoiceView } from "./views/invoice.js";
 import { bookingDetailsView } from "./views/bookingDetails.js";
 import { houseRulesView } from "./views/houseRules.js";
 import { surroundingsView, setSurroundingsFilter } from "./views/surroundings.js";
+import { weatherView, setWeatherListener, loadWeather } from "./views/weather.js";
 
 const app = document.getElementById("app");
 
@@ -81,6 +82,7 @@ const views = {
   invoice: () => invoiceView({ lang, room }),
   houseRules: () => houseRulesView({ lang }),
   surroundings: () => surroundingsView({ lang }),
+  weather: () => weatherView({ lang }),
 };
 
 function loadingScreen() {
@@ -187,6 +189,10 @@ document.addEventListener("click", async (e) => {
       return;
     }
 
+    case "weather-retry":
+      loadWeather(true);
+      return;
+
     // surroundings
     case "filter-tips":
       setSurroundingsFilter(target.dataset.tag);
@@ -216,6 +222,11 @@ document.addEventListener("click", async (e) => {
 // arms the timer when !showIdle) — nothing to time out from there.
 ["click", "touchstart", "keydown"].forEach((evt) => document.addEventListener(evt, resetIdleTimer, true));
 
+// The weather page loads asynchronously — redraw when data arrives, but only
+// while it is actually on screen (never over the idle screen or another page).
+setWeatherListener(() => {
+  if (route === "weather" && !showIdle) render();
+});
 subscribe(() => render());
 render();
 initStore().then(() => {

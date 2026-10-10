@@ -8,6 +8,7 @@ const NEEDED = [
   "phone-call", "check", "x", "chevron-down", "arrow-left", "arrow-right", "plus", "minus", "map-pin", "users", "send",
   "key-round", "trash-2", "bell", "bell-ring", "volume-2", "volume-x", "languages", "copy", "monitor",
   "banknote", "circle-help", "chevron-up", "archive", "archive-restore",
+  "sun", "cloud-sun", "cloud", "cloud-fog", "cloud-drizzle", "cloud-rain", "cloud-lightning", "sunset",
 ];
 
 const iconsDir = path.join(__dirname, "node_modules", "lucide-static", "icons");
