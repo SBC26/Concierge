@@ -452,6 +452,7 @@ function sidebar() {
   ];
   const accessItems = [
     ...(fullAccess ? [{ id: "qr", icon: "doorOpen", label: "QR-Codes fürs Zimmer" }] : []),
+    ...(fullAccess ? [{ id: "line", icon: "bellRing", label: "LINE-Meldungen" }] : []),
     ...(canStaff ? [{ id: "staff", icon: "users", label: "Mitarbeiter verwalten" }] : []),
   ];
   return `
@@ -1483,8 +1484,111 @@ function hydrateStaffPage() {
   if (staffList === null && !staffLoading) loadStaff();
 }
 
+// ---------- LINE NOTIFICATIONS ----------
+// New request line -> manager account, confirmed line -> staff account. The
+// sending itself happens server-side (database trigger -> edge function
+// notify-line); this page only edits the recipients (table line_settings) and
+// can send a test message. The LINE channel token is a server secret, never
+// entered or shown here.
+let lineSettings = null;
+let lineLoading = false;
+let lineStatus = ""; // transient feedback under the test buttons
+
+async function loadLineSettings() {
+  lineLoading = true;
+  const { data, error } = await supabase.from("line_settings").select("*").eq("id", 1).single();
+  lineLoading = false;
+  if (error) {
+    console.error("loadLineSettings failed", error);
+    lineStatus = "Einstellungen konnten nicht geladen werden.";
+  } else {
+    lineSettings = data;
+  }
+  render();
+}
+
+async function saveLineSetting(patch) {
+  Object.assign(lineSettings, patch);
+  flash = true;
+  render();
+  setTimeout(() => {
+    flash = false;
+    document.querySelectorAll(".save-flash").forEach((el) => el.classList.remove("show"));
+  }, 1400);
+  const { error } = await supabase.from("line_settings").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", 1);
+  if (error) {
+    console.error("saveLineSetting failed", error);
+    lineStatus = "Speichern fehlgeschlagen.";
+    render();
+  }
+}
+
+async function sendLineTest(target) {
+  lineStatus = "Sende Testnachricht …";
+  render();
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/notify-line`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+      },
+      body: JSON.stringify({ action: "test", target }),
+    });
+    const data = await res.json().catch(() => ({}));
+    lineStatus = res.ok ? `Testnachricht an das ${target === "staff" ? "Staff" : "Manager"}-Konto gesendet.` : `Fehler: ${data.error || res.status}`;
+  } catch {
+    lineStatus = "Fehler: Funktion nicht erreichbar.";
+  }
+  render();
+}
+
+function lineToggle(field, value, labelOn, labelOff) {
+  return `<div class="font-swatches" style="gap:6px;">
+    <button class="font-swatch ${value ? "active" : ""}" data-action="line-toggle" data-field="${field}" data-value="true" style="min-width:80px;padding:6px 10px;"><div class="label" style="margin:0;">${labelOn}</div></button>
+    <button class="font-swatch ${!value ? "active" : ""}" data-action="line-toggle" data-field="${field}" data-value="false" style="min-width:80px;padding:6px 10px;"><div class="label" style="margin:0;">${labelOff}</div></button>
+  </div>`;
+}
+
+function viewLine() {
+  if (!lineSettings) {
+    if (!lineLoading) loadLineSettings();
+    return `${topHeader("LINE-Meldungen", "Benachrichtigungen bei neuen und bestätigten Anfragen")}<p class="muted">${lineStatus || "Lädt …"}</p>`;
+  }
+  const ls = lineSettings;
+  return `
+    ${topHeader("LINE-Meldungen", "Benachrichtigungen bei neuen und bestätigten Anfragen")}
+    <div class="editor-section">
+      <h2>Manager-Konto — neue Anfrage</h2>
+      <p class="rules-hint" style="margin:0 0 10px;">Sobald ein Gast eine Anfrage abschickt (Status „In Prüfung"), geht eine Meldung an dieses LINE-Konto.</p>
+      <div class="plain-field"><label>LINE-ID des Manager-Kontos (beginnt mit U… oder C… bei Gruppen)</label>
+        <input value="${escapeAttr(ls.manager_id)}" data-action="line-field" data-field="manager_id" placeholder="U1234567890abcdef…" autocomplete="off" /></div>
+      <div class="plain-field"><label>Meldung bei neuer Anfrage</label>${lineToggle("notify_new", ls.notify_new, "Ein", "Aus")}</div>
+      <button class="pill-btn sm outline" data-action="line-test" data-target="manager" ${ls.manager_id ? "" : "disabled"}>${icon("send", { size: 13 })} Testnachricht senden</button>
+    </div>
+    <div class="editor-section">
+      <h2>Staff-Konto — bestätigte Anfrage</h2>
+      <p class="rules-hint" style="margin:0 0 10px;">Sobald eine Anfrage auf „Bestätigt" gesetzt wird, geht eine Meldung zur Ausführung an dieses LINE-Konto.</p>
+      <div class="plain-field"><label>LINE-ID des Staff-Kontos</label>
+        <input value="${escapeAttr(ls.staff_id)}" data-action="line-field" data-field="staff_id" placeholder="U1234567890abcdef…" autocomplete="off" /></div>
+      <div class="plain-field"><label>Meldung bei bestätigter Anfrage</label>${lineToggle("notify_confirmed", ls.notify_confirmed, "Ein", "Aus")}</div>
+      <button class="pill-btn sm outline" data-action="line-test" data-target="staff" ${ls.staff_id ? "" : "disabled"}>${icon("send", { size: 13 })} Testnachricht senden</button>
+    </div>
+    ${lineStatus ? `<p class="rules-hint" style="margin:0 0 14px;">${escapeHtml(lineStatus)}</p>` : ""}
+    <div class="editor-section">
+      <h2>Einrichtung (einmalig)</h2>
+      <ol class="rules-hint" style="margin:0;padding-left:18px;line-height:1.7;">
+        <li>Es wird derselbe LINE-Kanal (Messaging API) wie bei der Buchungsseite verwendet.</li>
+        <li>Dessen „Channel access token" im Supabase-Dashboard eintragen: <b>Project Settings → Edge Functions → Secrets → LINE_CHANNEL_ACCESS_TOKEN</b>.</li>
+        <li>Die LINE-IDs von Manager und Staff hier eintragen (dieselben IDs wie bei der Buchungsseite). Beide Konten müssen den LINE-Kanal als Freund hinzugefügt haben.</li>
+        <li>Mit „Testnachricht senden" prüfen, ob die Meldung ankommt.</li>
+      </ol>
+    </div>`;
+}
+
 const SITE_URL = "https://concierge.swissbaanchiang.com";
-const PAGES = { dashboard: viewDashboard, postcard: viewPostcard, info: viewInfo, services: viewServices, bookings: viewBookings, qr: viewQr, staff: viewStaff };
+const PAGES = { dashboard: viewDashboard, postcard: viewPostcard, info: viewInfo, services: viewServices, bookings: viewBookings, qr: viewQr, line: viewLine, staff: viewStaff };
 const BLANK_TIP = () => ({
   icon: "mapPin", title: { de: "Neuer Tipp", en: "New tip", th: "เคล็ดลับใหม่" }, desc: { de: "", en: "", th: "" },
   travelTime: "", tags: [], actionLabel: { de: "", en: "", th: "" },
@@ -1779,6 +1883,13 @@ root.addEventListener("click", async (e) => {
     else await updateInvoiceExtra(t.dataset.id, { invoicePaid: paid });
     return render();
   }
+  if (action === "line-toggle") {
+    if (!lineSettings) return;
+    return saveLineSetting({ [t.dataset.field]: t.dataset.value === "true" });
+  }
+  if (action === "line-test") {
+    return sendLineTest(t.dataset.target === "staff" ? "staff" : "manager");
+  }
   if (action === "toggle-booking") {
     const room = t.dataset.room;
     if (expandedBookings.has(room)) expandedBookings.delete(room);
@@ -1906,6 +2017,12 @@ root.addEventListener("change", (e) => {
     const id = fulfillmentInput.dataset.id;
     const current = getState().requestItems.find((i) => i.id === id)?.status || "in_pruefung";
     return setRequestItemStatus(id, current, fulfillmentInput.value);
+  }
+  const lineInput = e.target.closest('[data-action="line-field"]');
+  if (lineInput) {
+    if (!lineSettings) return;
+    lineStatus = "";
+    return saveLineSetting({ [lineInput.dataset.field]: lineInput.value.trim() });
   }
   const invInput = e.target.closest("[data-action^='inv-']");
   if (invInput && invInput.tagName === "INPUT") {
