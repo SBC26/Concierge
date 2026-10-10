@@ -180,6 +180,10 @@ h1, h2, h3, .display {
   display: flex; align-items: center; justify-content: center; padding: 0;
 }
 .hdr-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+/* Arrow and section title together are the back button (one big tap target). */
+.back-area { background: none; border: none; padding: 12px 0; margin: -12px 0; font-family: inherit; text-align: left; cursor: pointer; color: inherit; -webkit-tap-highlight-color: transparent; }
+.back-area .back-btn { pointer-events: none; }
+.back-area:hover .section-label, .back-area:active .section-label { color: var(--sbc-gold-bright); }
 .hdr-right { display: flex; align-items: center; gap: 16px; flex: 1; justify-content: flex-end; }
 /* phones: icon-only button so back arrow, button and language switch fit */
 @media (max-width: 743px) {

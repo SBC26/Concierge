@@ -55,10 +55,10 @@ export function renderBrandHeader(lang) {
 export function renderBackHeader({ lang, labelKey, label, showBasket = false, basketCount = 0 }) {
   return `
   <div class="back-header">
-    <div class="hdr-left">
-      <button class="back-btn" data-action="go-home">${icon("arrowLeft", { size: 20 })}</button>
+    <button class="hdr-left back-area" data-action="go-home" aria-label="${escapeHtml(t("back", lang))}">
+      <span class="back-btn">${icon("arrowLeft", { size: 20 })}</span>
       <span class="section-label">${escapeHtml(label || t(labelKey, lang))}</span>
-    </div>
+    </button>
     <div class="hdr-center">${requestsButton(lang)}</div>
     <div class="hdr-right">
       ${showBasket && basketCount > 0 ? basketLink(lang, basketCount) : ""}
