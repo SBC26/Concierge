@@ -141,6 +141,11 @@ document.addEventListener("click", async (e) => {
       showIdle = false;
       resetIdleTimer();
       return navigate("myRequests");
+    case "go-start":
+      // Brand logo: back to the resting screen (postcard / Fallblattanzeige). On
+      // that screen itself the logo behaves like any other tap and opens the menu.
+      if (showIdle) return exitIdle();
+      return enterIdle();
     case "go-home":
       // The brand logo also sits inside the idle screens (renderBrandHeader) —
       // tapping it there must exit idle like any other tap, not just set a

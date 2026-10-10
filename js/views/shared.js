@@ -41,7 +41,7 @@ export function renderBrandHeader(lang) {
   return `
   <div class="topbar">
     <div class="topbar-row">
-      <div class="brand-name" data-action="go-home" style="cursor:pointer;">
+      <div class="brand-name" data-action="go-start" style="cursor:pointer;">
         ${lang === "th" ? `<div style="display:flex;align-items:center;gap:10px;">${vaseLogo({ size: 30 })}<span class="brand-word" lang="${lang}">${escapeHtml(t("hotelName", lang))}</span></div>` : wordmarkLogo({ height: 24 })}
       </div>
       <div class="hdr-center">${requestsButton(lang)}</div>
