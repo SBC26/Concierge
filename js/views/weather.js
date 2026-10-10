@@ -31,7 +31,17 @@ export async function loadWeather(force = false) {
   if (!force && Date.now() - lastFailAt < 60 * 1000) return;
   status = "loading";
   try {
-    const res = await fetch(API_URL);
+    // A request that never answers (blocked/filtered network) must not leave the
+    // page stuck on "loading" forever — give up after 10 s so the fallback shows
+    // and a retry is possible.
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 10000);
+    let res;
+    try {
+      res = await fetch(API_URL, { signal: ctrl.signal });
+    } finally {
+      clearTimeout(timer);
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     data = await res.json();
     fetchedAt = Date.now();
