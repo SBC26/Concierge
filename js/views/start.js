@@ -71,14 +71,18 @@ function guestGreeting(booking, lang) {
 function bookingCard(booking, lang) {
   return `
     <div class="booking-card">
-      <div class="row-between">
-        <span class="section-label">${t("bookingLabel", lang)}</span>
-        <button class="link" data-action="nav" data-route="bookingDetails">${t("detailsLink", lang)}</button>
-      </div>
-      <div class="villa-name" lang="${lang}">${escapeHtml(booking.room)}</div>
-      <div class="meta">${fmtRange(booking, lang)} · ${booking.guestsAdults + booking.guestsChildren} ${t("guestsLabel", lang)}${booking.bedrooms ? ` · ${booking.bedrooms} SZ` : ""}</div>
+      <button class="booking-zone booking-top" data-action="nav" data-route="bookingDetails">
+        <span class="row-between">
+          <span class="section-label">${t("bookingLabel", lang)}</span>
+          <span class="link">${t("detailsLink", lang)}</span>
+        </span>
+        <span class="villa-name" lang="${lang}">${escapeHtml(booking.room)}</span>
+        <span class="meta">${fmtRange(booking, lang)} · ${booking.guestsAdults + booking.guestsChildren} ${t("guestsLabel", lang)}${booking.bedrooms ? ` · ${booking.bedrooms} SZ` : ""}</span>
+      </button>
       <hr />
-      <button class="weather weather-link" data-action="nav" data-route="weather">${escapeHtml(weatherSummary(lang) || booking.weatherNote || t("secNavWeather", lang))} ${icon("arrowRight", { size: 14 })}</button>
+      <button class="booking-zone booking-weather weather" data-action="nav" data-route="weather">
+        <span>${escapeHtml(weatherSummary(lang) || booking.weatherNote || t("secNavWeather", lang))}</span>${icon("arrowRight", { size: 14 })}
+      </button>
     </div>`;
 }
 

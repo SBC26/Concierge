@@ -197,12 +197,24 @@ main { flex: 1; padding: 0 0 40px; }
 
 .booking-card {
   margin: 24px var(--gutter) 0;
-  padding: 20px;
+  padding: 0;
   background: var(--sbc-wattblau-soft);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  display: flex; flex-direction: column; gap: 12px;
+  display: flex; flex-direction: column;
+  overflow: hidden;
 }
+/* The two halves of the card are each one big tap target:
+   top -> booking details, bottom -> weather. */
+.booking-zone {
+  display: flex; width: 100%; text-align: left; font-family: inherit; color: inherit;
+  background: none; border: none; cursor: pointer; padding: 20px;
+  -webkit-tap-highlight-color: transparent;
+}
+.booking-zone:hover, .booking-zone:active { background: rgba(255, 255, 255, 0.045); }
+.booking-top { flex-direction: column; gap: 12px; }
+.booking-weather { align-items: center; justify-content: space-between; gap: 10px; padding: 16px 20px; }
+.booking-weather .icon { color: var(--sbc-gold); }
 .booking-card .row-between .section-label { margin: 0; }
 .booking-card a, .booking-card .link { color: var(--sbc-gold); font-size: 13px; text-decoration: none; cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; }
 .booking-card .villa-name { font-family: var(--font-body); font-weight: 500; font-size: 22px; color: var(--sbc-gold-bright); }
