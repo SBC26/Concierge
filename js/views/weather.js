@@ -17,6 +17,7 @@ const API_URL =
 let data = null;
 let fetchedAt = 0;
 let status = "idle"; // idle | loading | ok | error
+let lastFailAt = 0;
 let onChange = () => {};
 
 export function setWeatherListener(fn) {
@@ -26,6 +27,8 @@ export function setWeatherListener(fn) {
 export async function loadWeather(force = false) {
   if (status === "loading") return;
   if (!force && data && Date.now() - fetchedAt < CACHE_MS) return;
+  // After a failure wait a minute before the next automatic try — every redraw asks for weather, so without this a failed request would loop.
+  if (!force && Date.now() - lastFailAt < 60 * 1000) return;
   status = "loading";
   try {
     const res = await fetch(API_URL);
@@ -35,6 +38,7 @@ export async function loadWeather(force = false) {
     status = "ok";
   } catch (err) {
     console.error("weather fetch failed", err);
+    lastFailAt = Date.now();
     status = data ? "ok" : "error"; // keep showing the last good data if a refresh fails
   }
   onChange();
@@ -52,6 +56,16 @@ function condition(code, isDay = 1) {
   if (code >= 80 && code <= 82) return { key: "wxShowers", icon: "cloudRain" };
   if (code >= 95) return { key: "wxThunder", icon: "cloudLightning" };
   return { key: "wxOvercast", icon: "cloud" };
+}
+
+// One-line live summary for the booking card ("Hua Hin · 29° · Drizzle"), or
+// null until data has loaded — callers fall back to the manual note. Starts
+// the (cached) fetch if needed.
+export function weatherSummary(lang) {
+  loadWeather();
+  if (!data?.current) return null;
+  const c = data.current;
+  return `Hua Hin · ${Math.round(c.temperature_2m)}° · ${t(condition(c.weather_code, c.is_day).key, lang)}`;
 }
 
 const hhmm = (iso) => (iso || "").slice(11, 16);

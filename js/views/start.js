@@ -6,6 +6,7 @@ import { t, tf } from "../i18n.js";
 import { icon } from "../icons.js";
 import { escapeHtml } from "../util.js";
 import { renderBrandHeader, abPrice } from "./shared.js";
+import { weatherSummary } from "./weather.js";
 
 export function startView({ lang, room, basketCount }) {
   const s = getState();
@@ -77,7 +78,7 @@ function bookingCard(booking, lang) {
       <div class="villa-name" lang="${lang}">${escapeHtml(booking.room)}</div>
       <div class="meta">${fmtRange(booking, lang)} · ${booking.guestsAdults + booking.guestsChildren} ${t("guestsLabel", lang)}${booking.bedrooms ? ` · ${booking.bedrooms} SZ` : ""}</div>
       <hr />
-      <button class="weather weather-link" data-action="nav" data-route="weather">${escapeHtml(booking.weatherNote)} ${icon("arrowRight", { size: 14 })}</button>
+      <button class="weather weather-link" data-action="nav" data-route="weather">${escapeHtml(weatherSummary(lang) || booking.weatherNote)} ${icon("arrowRight", { size: 14 })}</button>
     </div>`;
 }
 

@@ -222,10 +222,11 @@ document.addEventListener("click", async (e) => {
 // arms the timer when !showIdle) — nothing to time out from there.
 ["click", "touchstart", "keydown"].forEach((evt) => document.addEventListener(evt, resetIdleTimer, true));
 
-// The weather page loads asynchronously — redraw when data arrives, but only
-// while it is actually on screen (never over the idle screen or another page).
+// Weather loads asynchronously (page + the booking card's live line) — redraw
+// when data arrives, but only while one of them is on screen (never over the
+// idle screen or another page).
 setWeatherListener(() => {
-  if (route === "weather" && !showIdle) render();
+  if ((route === "weather" || route === "home") && !showIdle) render();
 });
 subscribe(() => render());
 render();

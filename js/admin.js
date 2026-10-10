@@ -1339,7 +1339,7 @@ function bookingCard(b, i, expanded) {
             <p class="rules-hint">Du: „Schön, dass du hier bist …“ · Ihr: „Schön, dass ihr hier seid …“ (z. B. für Familien)</p>
           </div>
           <div class="plain-field"><label>Kaution</label><input value="${escapeAttr(b.depositStatus)}" data-bind="bookings.${i}.depositStatus" placeholder="z. B. hinterlegt" /></div>
-          <div class="plain-field"><label>Wetter-Hinweis</label><input value="${escapeAttr(b.weatherNote)}" data-bind="bookings.${i}.weatherNote" placeholder="z. B. Hua Hin · 31° · sonnig" /></div>
+          <div class="plain-field"><label>Wetter-Hinweis (nur Ersatz, falls das Live-Wetter nicht lädt)</label><input value="${escapeAttr(b.weatherNote)}" data-bind="bookings.${i}.weatherNote" placeholder="z. B. Hua Hin · 31° · sonnig" /></div>
         </div>
         <div class="plain-field"><label>Adresse</label><input value="${escapeAttr(b.address)}" data-bind="bookings.${i}.address" /></div>
         ${invoiceEditor(b)}
