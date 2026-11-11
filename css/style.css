@@ -41,6 +41,8 @@
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
+/* Kiosk tablet: no pull-to-refresh / rubber-band when swiping, no double-tap zoom. */
+html { overscroll-behavior: none; touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body {
   margin: 0;
   font-family: var(--font-body);
@@ -72,10 +74,13 @@ h1, h2, h3, .display {
   color: var(--sbc-gold);
 }
 
+/* Fills the whole screen. (Used to be capped at 1133px and centred, which left
+   dark bands on both sides of wider tablets such as the 1280x800 Lenovo Tab.) */
 .app-shell {
-  max-width: 1133px;
-  margin: 0 auto;
-  min-height: 100%;
+  width: 100%;
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--sbc-wattblau);
@@ -460,7 +465,7 @@ hr.sep { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
    filled in for a real access point mirroring the existing cart-bar pattern) */
 .basket-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex; justify-content: center; pointer-events: none; }
 .basket-bar-inner {
-  pointer-events: auto; max-width: 1133px; width: calc(100% - 2 * var(--gutter)); margin-bottom: 16px;
+  pointer-events: auto; width: calc(100% - 2 * var(--gutter)); margin-bottom: 16px;
   background: var(--sbc-gold); color: var(--sbc-wattblau-deep); border-radius: var(--radius-pill);
   padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; cursor: pointer;
   font-family: var(--font-sub); font-weight: 500; font-size: 13px; letter-spacing: var(--tracking-wide); text-transform: uppercase;
@@ -550,6 +555,12 @@ main.postcard-takeover { padding: 20px; flex: 1; display: flex; flex-direction: 
    (1024x768) nicely without touching edge-to-edge and without the card's
    height (from aspect-ratio) pushing past the viewport height. */
 .postcard-wrap { width: 100%; max-width: 800px; margin: 0 auto; }
+/* Sized to the real viewport: as wide as the height left under the header (82px)
+   allows — the card is 1.408:1 — so it fills a 10" 16:10 tablet without its
+   height pushing past the screen. Browsers without dvh keep the 800px cap. */
+@supports (width: 1dvh) {
+  .postcard-wrap { max-width: min(100%, calc((100dvh - 165px) * 1.408)); }
+}
 .postcard {
   width: 100%; aspect-ratio: 419.25 / 297.75; background-color: var(--sbc-wattblau-deep);
   background-image: url("../assets/postcard-frame.png"); background-size: 100% 100%; background-repeat: no-repeat;
@@ -560,7 +571,7 @@ main.postcard-takeover { padding: 20px; flex: 1; display: flex; flex-direction: 
    the card itself so it stays proportional regardless of how wide the card
    ends up, instead of silently overflowing/shrinking whenever .postcard-wrap's
    max-width changes independently of the viewport. */
-.postcard-message { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--sbc-sand); font-size: clamp(22px, 6.5cqw, 56px); line-height: 1.55; white-space: pre-wrap; word-break: break-word; overflow-y: auto; }
+.postcard-message { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--sbc-sand); font-size: clamp(22px, 6.5cqw, 76px); line-height: 1.55; white-space: pre-wrap; word-break: break-word; overflow-y: auto; }
 .postcard-message.placeholder { color: rgba(233, 223, 209, 0.5); font-family: "Montserrat", sans-serif !important; font-size: clamp(15px, 3.5cqw, 28px); }
 .postcard-footer { font-size: 10px; letter-spacing: var(--tracking-wide); text-transform: uppercase; color: rgba(233, 223, 209, 0.45); border-top: 1px dashed rgba(201, 169, 114, 0.25); padding-top: 10px; margin-top: 8px; text-align: center; flex-shrink: 0; }
 
@@ -589,6 +600,12 @@ main.fb-idle { flex: 1; min-height: 0; display: flex; flex-direction: column; al
 .fb-cell {
   position: relative; flex-shrink: 0; container-type: inline-size;
   width: calc((100% - 90px) / 16); min-width: 22px; max-width: 64px; aspect-ratio: 64 / 118;
+}
+/* On larger screens the board grows to fill them: as wide as the row allows, but
+   never taller than the 4 rows fit between header and hint (cell height =
+   width x 118/64; 205px = header + paddings + rules + hint + row gaps). */
+@supports (width: 1dvh) {
+  .fb-cell { width: min(calc((100% - 90px) / 16), calc((100dvh - 205px) * 0.1356)); max-width: 120px; }
 }
 .fb-cell-half { position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background-color: var(--sbc-wattblau-soft); border: 1px solid var(--line); }
 /* A faint top-lit/bottom-shadowed gradient on the two resting halves, so the

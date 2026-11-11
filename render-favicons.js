@@ -10,7 +10,7 @@ const NAVY = "#172f3c";
 
 (async () => {
   const img = await loadImage(path.join(__dirname, "assets", "logo-kelch.png"));
-  for (const size of [32, 180]) {
+  for (const size of [32, 180, 192, 512]) {
     const canvas = createCanvas(size, size);
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = NAVY;
