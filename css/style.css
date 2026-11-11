@@ -670,3 +670,27 @@ main.fb-idle { flex: 1; min-height: 0; display: flex; flex-direction: column; al
 .weather-day-temps span { color: var(--sbc-copper); }
 .weather-credit { padding: 18px var(--gutter) 0; font-size: 12px; color: var(--sbc-copper); }
 @media (max-width: 480px) { .weather-day { grid-template-columns: 84px 24px 1fr auto; gap: 8px; } .weather-day-rain { display: none; } }
+
+/* Postcard idle screen on wide tablets: the card is no longer locked to the
+   frame image's 1.41:1 shape. It fills the space under the header with the same
+   gap on all four sides (--pc-gap), so on a 16:10 tablet (Lenovo Tab, 1280x800)
+   the margin at the sides equals the margin at the top. The frame is rebuilt
+   from the same artwork: a hairline rectangle (::before) with the brand logo
+   (::after, cropped from postcard-frame.png) sitting centred on its top edge,
+   exactly like the original. The admin compose-preview keeps the image frame. */
+main.postcard-takeover { --pc-gap: 24px; padding: var(--pc-gap) var(--pc-gap) 14px; gap: 12px; }
+.postcard-takeover .postcard-wrap { flex: 1; min-height: 0; max-width: none; margin: 0; display: flex; flex-direction: column; }
+.postcard-takeover .postcard {
+  position: relative; aspect-ratio: auto; flex: 1; min-height: 0; background-image: none;
+  padding: 128px 7% 52px;
+}
+.postcard-takeover .postcard::before {
+  content: ""; position: absolute; left: 18px; right: 18px; bottom: 18px; top: 70px;
+  border: 1px solid rgba(184, 146, 108, 0.9); pointer-events: none;
+}
+.postcard-takeover .postcard::after {
+  content: ""; position: absolute; left: 50%; top: 70px; width: clamp(240px, 30%, 400px); aspect-ratio: 637 / 140;
+  background: url("../assets/postcard-logo.png") center / 100% 100% no-repeat;
+  transform: translate(-50%, -63.6%); pointer-events: none;
+}
+.postcard-takeover .postcard-message, .postcard-takeover .postcard-footer { position: relative; z-index: 1; }
