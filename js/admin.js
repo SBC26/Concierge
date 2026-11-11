@@ -760,7 +760,7 @@ function viewPostcard() {
       <h3>Vorschau &amp; Nachricht</h3>
       ${
         isFallblatt
-          ? `<div id="pc-fb-preview" style="background:var(--sbc-wattblau-deep);border:1px solid var(--line);border-radius:8px;padding:18px;font-family:var(--font-display);font-size:20px;letter-spacing:0.04em;color:var(--sbc-gold-bright);text-align:center;line-height:1.9;white-space:pre;">${escapeHtml(wrapForPreview(pcText).join("\n") || "So erscheint deine Mitteilung auf der Fallblattanzeige …")}</div>`
+          ? `<div id="pc-fb-preview" style="background:var(--sbc-wattblau-deep);border:1px solid var(--line);border-radius:8px;padding:18px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:20px;letter-spacing:0.12em;color:var(--sbc-gold-bright);text-align:center;line-height:1.9;white-space:pre;">${escapeHtml(wrapForPreview(pcText).join("\n") || "So erscheint deine Mitteilung auf der Fallblattanzeige …")}</div>`
           : postcardHTML({
               idPrefix: "pc",
               message: pcText,
