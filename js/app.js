@@ -227,6 +227,64 @@ document.addEventListener("click", async (e) => {
 // arms the timer when !showIdle) — nothing to time out from there.
 ["click", "touchstart", "keydown"].forEach((evt) => document.addEventListener(evt, resetIdleTimer, true));
 
+// ---------- Night rest (Fully Kiosk Browser) ----------
+// Fully's own "Schedule Wakeup and Sleep" switches the screen off once, at the
+// set time. If a guest wakes the tablet by touch during the night, nothing ever
+// switches it off again. So the page does it itself: at night, once nobody has
+// touched the screen for a minute, it asks Fully to turn the screen off. Needs
+// Fully's "Enable JavaScript Interface (PLUS)" switched on; without Fully (or
+// with the interface off) `window.fully` doesn't exist and none of this runs.
+// Window and idle time can be set per device in localStorage:
+//   sbc_night_window = "23:00-06:30", sbc_night_idle_s = 60
+const NIGHT_DEFAULT_WINDOW = "23:00-06:30";
+const NIGHT_TZ = "Asia/Bangkok";
+let lastActivity = Date.now();
+
+function nightWindow() {
+  let w = NIGHT_DEFAULT_WINDOW;
+  try {
+    w = localStorage.getItem("sbc_night_window") || w;
+  } catch {
+    /* storage unavailable — default window */
+  }
+  const m = /^(\d\d:\d\d)-(\d\d:\d\d)$/.exec(w);
+  return m ? { start: m[1], end: m[2] } : { start: "23:00", end: "06:30" };
+}
+function isNight(now = new Date()) {
+  const hm = new Intl.DateTimeFormat("en-GB", { timeZone: NIGHT_TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now);
+  const { start, end } = nightWindow();
+  return start > end ? hm >= start || hm < end : hm >= start && hm < end; // window may span midnight
+}
+function nightIdleMs() {
+  let sec = 60;
+  try {
+    sec = Number(localStorage.getItem("sbc_night_idle_s")) || sec;
+  } catch {
+    /* default */
+  }
+  return sec * 1000;
+}
+let nightBound = false;
+function nightSleepTick() {
+  const f = window.fully;
+  if (!f || typeof f.turnScreenOff !== "function") return;
+  if (!nightBound && typeof f.bind === "function") {
+    nightBound = true;
+    // A guest waking the tablet starts a fresh minute of grace (the waking touch
+    // itself doesn't reach the page).
+    window.__sbcWake = () => { lastActivity = Date.now(); };
+    try { f.bind("screenOn", "window.__sbcWake && window.__sbcWake();"); } catch { /* optional */ }
+  }
+  if (!isNight() || Date.now() - lastActivity < nightIdleMs()) return;
+  try {
+    f.turnScreenOff(false);
+  } catch {
+    /* Fully refused — try again on the next tick */
+  }
+}
+["click", "touchstart", "keydown"].forEach((evt) => document.addEventListener(evt, () => { lastActivity = Date.now(); }, true));
+setInterval(nightSleepTick, 15000);
+
 // Weather loads asynchronously (page + the booking card's live line) — redraw
 // when data arrives, but only while one of them is on screen (never over the
 // idle screen or another page).
