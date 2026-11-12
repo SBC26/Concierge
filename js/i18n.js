@@ -58,9 +58,17 @@ export const UI = {
   secNavRequests: { de: "Meine Anfragen", en: "My Requests", th: "คำขอของฉัน" },
   statusUpdatedTag: { de: "Neuer Status", en: "New status", th: "สถานะใหม่" },
   openCountSuffix: { de: "offen", en: "open", th: "รอดำเนินการ" },
-  contactTitle: { de: "Direkt schreiben", en: "Message us directly", th: "ส่งข้อความถึงเราโดยตรง" },
-  contactRoleLabel: { de: "dein Concierge", en: "your concierge", th: "คอนเซียร์จของท่าน" },
-  contactHours: { de: "8–20 Uhr", en: "8am–8pm", th: "8:00–20:00 น." },
+  contactTitle: { de: "Dein Concierge", en: "Your concierge", th: "คอนเซียร์จของท่าน" },
+  contactAvailable: {
+    de: "Dein Concierge steht dir von 07:00 bis 22:00 Uhr zur Verfügung.",
+    en: "Your concierge is available from 7:00 am to 10:00 pm.",
+    th: "คอนเซียร์จพร้อมให้บริการท่านตั้งแต่ 07:00 ถึง 22:00 น.",
+  },
+  contactAvailableNamed: {
+    de: "{name}, dein Concierge, steht dir von 07:00 bis 22:00 Uhr zur Verfügung.",
+    en: "{name}, your concierge, is available from 7:00 am to 10:00 pm.",
+    th: "{name} คอนเซียร์จของท่าน พร้อมให้บริการตั้งแต่ 07:00 ถึง 22:00 น.",
+  },
 
   // ---------- Service detail ----------
   serviceSectionLabel: { de: "Service", en: "Service", th: "บริการ" },

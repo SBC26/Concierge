@@ -32,16 +32,14 @@ export function surroundingsView({ lang }) {
       <div style="margin-top:20px;">
         ${tips
           .filter((tip) => activeFilter === "all" || (tip.tags || []).includes(activeFilter))
-          .map((tip) => placeCard(tip, lang, c.conciergePhone))
+          .map((tip) => placeCard(tip, lang))
           .join("")}
       </div>
     </main>`;
 }
 
-function placeCard(tip, lang, conciergePhone) {
+function placeCard(tip, lang) {
   const name = tf(tip.title, lang);
-  const actionLabel = tf(tip.actionLabel, lang);
-  const waHref = conciergePhone ? `https://wa.me/${conciergePhone.replace(/[^\d]/g, "")}?text=${encodeURIComponent(name)}` : null;
   return `
     <div class="place-card">
       <div class="row-between">
@@ -49,6 +47,5 @@ function placeCard(tip, lang, conciergePhone) {
         ${tip.travelTime ? `<span class="time">${escapeHtml(tip.travelTime)}</span>` : ""}
       </div>
       <p class="desc" lang="${lang}">${escapeHtml(tf(tip.desc, lang))}</p>
-      ${actionLabel && waHref ? `<a class="action" href="${waHref}" target="_blank" rel="noopener">${escapeHtml(actionLabel)}</a>` : ""}
     </div>`;
 }

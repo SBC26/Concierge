@@ -2,7 +2,7 @@
 // the 3x3 service grid (8 tiles + the full-width "inklusive" maintenance row),
 // secondary nav and the direct-contact block.
 import { getState } from "../store.js";
-import { t, tf } from "../i18n.js";
+import { t, tf, tv } from "../i18n.js";
 import { icon } from "../icons.js";
 import { escapeHtml } from "../util.js";
 import { renderBrandHeader, abPrice } from "./shared.js";
@@ -54,8 +54,7 @@ export function startView({ lang, room, basketCount }) {
       <div class="section-pad">
         <div class="contact-card">
           <div class="title" lang="${lang}">${t("contactTitle", lang)}</div>
-          <div class="body" lang="${lang}">${escapeHtml(s.content.conciergeName)}, ${t("contactRoleLabel", lang)} · WhatsApp · ${t("contactHours", lang)}</div>
-          ${s.content.conciergePhone ? `<a class="link" style="margin-top:6px;display:inline-block;" href="https://wa.me/${s.content.conciergePhone.replace(/[^\d]/g, "")}" target="_blank" rel="noopener">WhatsApp →</a>` : ""}
+          <div class="body" lang="${lang}">${escapeHtml(s.content.conciergeName ? tv("contactAvailableNamed", lang, { name: s.content.conciergeName }) : t("contactAvailable", lang))}</div>
         </div>
       </div>
       ${basketCount > 0 ? basketBar(lang, basketCount) : ""}
