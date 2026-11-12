@@ -619,7 +619,12 @@ main.fb-idle { flex: 1; min-height: 0; display: flex; flex-direction: column; al
    2D fold as a physical card turning edge-on to the light rather than a flat
    squash: it darkens and lifts a shadow as it collapses toward the hinge, then
    brightens and settles as the new face rotates into view. */
-.fb-cell-flap { position: absolute; top: 0; left: 0; width: 100%; height: 50%; overflow: hidden; transform-origin: bottom; background-color: var(--sbc-wattblau-soft); background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 65%); border: 1px solid var(--line); border-bottom: none; border-radius: var(--radius-xs) var(--radius-xs) 0 0; }
+/* Dimming of the folding leaf and the shadow it casts on the lower half: plain
+   opacity layers, driven from js/views/idle.js (patchCell). Much cheaper than a
+   CSS filter, and the flap gets its own compositor layer (will-change). */
+.fb-cell-shade { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; }
+.fb-cell-cast { position: absolute; left: 0; right: 0; top: 0; height: 34%; opacity: 0; pointer-events: none; background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0)); z-index: 2; }
+.fb-cell-flap { will-change: transform; position: absolute; top: 0; left: 0; width: 100%; height: 50%; overflow: hidden; transform-origin: bottom; background-color: var(--sbc-wattblau-soft); background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 65%); border: 1px solid var(--line); border-bottom: none; border-radius: var(--radius-xs) var(--radius-xs) 0 0; }
 /* The hinge: a thin highlight-over-shadow pair rather than a flat line, so it
    reads as a crease with real depth instead of a printed rule. */
 .fb-cell-seam { position: absolute; left: 0; right: 0; top: calc(50% - 1px); height: 3px; background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), rgba(255, 255, 255, 0.05) 40%, rgba(0, 0, 0, 0.4)); z-index: 5; }

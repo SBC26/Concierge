@@ -37,11 +37,13 @@ const STAGGER_MS = 35;
 const ROW_STAGGER_MS = 120;
 const FOLD_EASE = "cubic-bezier(.55,0,1,.45)";
 const UNFOLD_EASE = "cubic-bezier(.34,1.56,.64,1)";
-// filter (not just transform) is what sells the fold as a leaf turning
-// edge-on to the light rather than a flat vertical squash — see the matching
-// CSS comment on .fb-cell-flap.
-const FLAP_SHADE = "brightness(0.55) drop-shadow(0 3px 4px rgba(0,0,0,.45))";
-const FLAP_LIT = "brightness(1) drop-shadow(0 0 0 rgba(0,0,0,0))";
+// The dimming + cast shadow that sell the fold as a leaf turning edge-on to the
+// light are two cheap opacity layers (.fb-cell-shade on the flap, and the
+// .fb-cell-cast on the lower half — see style.css) instead of a CSS filter
+// (brightness + drop-shadow). A blurred filter per moving flap, on up to 64
+// cells at once, was far too heavy for a mid-range tablet GPU; opacity changes
+// are composited without repainting anything.
+const SHADE_OPACITY = 0.45;
 
 // A real split-flap wheel carries every character on one physical reel that
 // only spins forward — to go from "A" to "C" it must click through "B" on
@@ -58,7 +60,10 @@ const CHARSET = " ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜß0123456789.,!?·-'\"/&()+:;"
 // flutters longer than roughly a second, however far its real distance is —
 // the rendered characters are evenly sampled along the true forward path, so
 // it still reads as "spinning through the alphabet" rather than skipping.
-const MAX_FLUTTER = 9;
+const MAX_FLUTTER = 6;
+// Lite mode (see probePerformance): if the device can't keep up, cells go
+// through only a couple of intermediate characters.
+const MAX_FLUTTER_LITE = 2;
 const FLUTTER_FOLD_MS = 45;
 const FLUTTER_UNFOLD_MS = 45;
 const FLUTTER_EASE = "linear";
@@ -67,20 +72,20 @@ const FLUTTER_EASE = "linear";
 // `fromChar` to `toChar`, forward-only along CHARSET, ending with `toChar`
 // itself. A char missing from CHARSET (stray punctuation, emoji, …) falls
 // back to a single direct flip rather than breaking the animation.
-function charPath(fromChar, toChar) {
+function charPath(fromChar, toChar, maxFlutter = MAX_FLUTTER) {
   const from = CHARSET.indexOf(fromChar);
   const to = CHARSET.indexOf(toChar);
   if (from === -1 || to === -1) return [toChar];
   const n = CHARSET.length;
   const dist = (to - from + n) % n;
-  if (dist <= MAX_FLUTTER + 1) {
+  if (dist <= maxFlutter + 1) {
     const steps = [];
     for (let k = 1; k <= dist; k++) steps.push(CHARSET[(from + k) % n]);
     return steps;
   }
   const steps = [];
-  for (let k = 1; k <= MAX_FLUTTER; k++) {
-    steps.push(CHARSET[(from + Math.round((dist * k) / (MAX_FLUTTER + 1))) % n]);
+  for (let k = 1; k <= maxFlutter; k++) {
+    steps.push(CHARSET[(from + Math.round((dist * k) / (maxFlutter + 1))) % n]);
   }
   steps.push(toChar);
   return steps;
@@ -190,8 +195,17 @@ function patchCell(r, i, patch) {
   const c = board.cellsEls[r]?.[i];
   if (!c) return;
   if (patch.flapScale !== undefined) c.flapEl.style.transform = `scaleY(${patch.flapScale})`;
-  if (patch.flapFilter !== undefined) c.flapEl.style.filter = patch.flapFilter;
-  if (patch.flapTransition !== undefined) c.flapEl.style.transition = patch.flapTransition;
+  if (patch.shade !== undefined) {
+    c.shadeEl.style.opacity = patch.shade * SHADE_OPACITY;
+    c.castEl.style.opacity = patch.shade;
+  }
+  if (patch.ms !== undefined) {
+    // One duration/easing drives the fold and its shading together.
+    const tr = (prop) => (patch.ms === 0 ? "none" : `${prop} ${patch.ms}ms ${patch.ease}`);
+    c.flapEl.style.transition = tr("transform");
+    c.shadeEl.style.transition = tr("opacity");
+    c.castEl.style.transition = tr("opacity");
+  }
   if (patch.char !== undefined) {
     c.char = patch.char;
     c.topGlyph.textContent = patch.char;
@@ -215,21 +229,39 @@ function scheduleFlip(r, i, steps, stepIdx, delay) {
   const foldEase = isLast ? FOLD_EASE : FLUTTER_EASE;
   const unfoldEase = isLast ? UNFOLD_EASE : FLUTTER_EASE;
   after(delay, () => {
-    patchCell(r, i, {
-      flapScale: 0, flapFilter: FLAP_SHADE,
-      flapTransition: `transform ${foldMs}ms ${foldEase}, filter ${foldMs}ms ${foldEase}`,
-    });
+    patchCell(r, i, { flapScale: 0, shade: 1, ms: foldMs, ease: foldEase });
     after(foldMs, () => {
-      patchCell(r, i, { char: ch, flapChar: ch, flapScale: 0, flapFilter: FLAP_SHADE, flapTransition: "none" });
+      patchCell(r, i, { char: ch, flapChar: ch, flapScale: 0, shade: 1, ms: 0 });
       after(16, () => {
-        patchCell(r, i, {
-          flapScale: 1, flapFilter: FLAP_LIT,
-          flapTransition: `transform ${unfoldMs}ms ${unfoldEase}, filter ${unfoldMs}ms ease-out`,
-        });
+        patchCell(r, i, { flapScale: 1, shade: 0, ms: unfoldMs, ease: unfoldEase });
         after(unfoldMs, () => scheduleFlip(r, i, steps, stepIdx + 1, 0));
       });
     });
   });
+}
+
+// Watches the frame rate while a page change plays. If the device is clearly
+// struggling (a typical mid-range tablet GPU can be), the next page changes
+// use lite mode — far fewer intermediate flips — and stay in it. Frames are
+// only counted while the board is actually animating.
+function probePerformance() {
+  if (!board || board.lite || board.probing) return;
+  board.probing = true;
+  const dts = [];
+  let last = performance.now();
+  const start = last;
+  const tick = (t) => {
+    dts.push(t - last);
+    last = t;
+    if (board && t - start < 1800) return requestAnimationFrame(tick);
+    if (board) {
+      board.probing = false;
+      const sorted = [...dts].sort((a, b) => a - b);
+      const p75 = sorted[Math.floor(sorted.length * 0.75)] || 0;
+      if (p75 > 38) board.lite = true; // 75% of frames slower than ~26 fps
+    }
+  };
+  requestAnimationFrame(tick);
 }
 
 // All 4 rows advance together — cells stagger left-to-right within a row,
@@ -239,13 +271,15 @@ function scheduleFlip(r, i, steps, stepIdx, delay) {
 // needed fewer — the same organic, uneven "settle" a real board has.
 function advancePage() {
   if (!board) return;
+  probePerformance();
+  const maxFlutter = board.lite ? MAX_FLUTTER_LITE : MAX_FLUTTER;
   board.pageIdx = (board.pageIdx + 1) % board.pages.length;
   const target = board.pages[board.pageIdx];
   target.forEach((rowStr, r) => {
     rowStr.split("").forEach((nextChar, i) => {
       const cell = board.cellsEls[r]?.[i];
       if (!cell || cell.char === nextChar) return;
-      const steps = charPath(cell.char, nextChar);
+      const steps = charPath(cell.char, nextChar, maxFlutter);
       scheduleFlip(r, i, steps, 0, r * ROW_STAGGER_MS + i * STAGGER_MS);
     });
   });
@@ -284,20 +318,22 @@ export function mountFallblattBoard(root, { room, lang }) {
       cell.className = "fb-cell";
       cell.innerHTML =
         '<div class="fb-cell-half fb-cell-top"><div class="fb-cell-glyph"></div></div>' +
-        '<div class="fb-cell-half fb-cell-bottom"><div class="fb-cell-glyph"></div></div>' +
-        '<div class="fb-cell-flap"><div class="fb-cell-glyph"></div></div>' +
+        '<div class="fb-cell-half fb-cell-bottom"><div class="fb-cell-glyph"></div><div class="fb-cell-cast"></div></div>' +
+        '<div class="fb-cell-flap"><div class="fb-cell-glyph"></div><div class="fb-cell-shade"></div></div>' +
         '<div class="fb-cell-seam"></div>';
       rowEl.appendChild(cell);
       const topGlyph = cell.querySelector(".fb-cell-top .fb-cell-glyph");
       const bottomGlyph = cell.querySelector(".fb-cell-bottom .fb-cell-glyph");
       const flapEl = cell.querySelector(".fb-cell-flap");
       const flapGlyph = flapEl.querySelector(".fb-cell-glyph");
+      const shadeEl = flapEl.querySelector(".fb-cell-shade");
+      const castEl = cell.querySelector(".fb-cell-cast");
       topGlyph.textContent = ch;
       bottomGlyph.textContent = ch;
       flapGlyph.textContent = ch;
       flapEl.style.transform = "scaleY(1)";
       flapEl.style.transition = "none";
-      return { char: ch, topGlyph, bottomGlyph, flapEl, flapGlyph };
+      return { char: ch, topGlyph, bottomGlyph, flapEl, flapGlyph, shadeEl, castEl };
     });
   });
 
