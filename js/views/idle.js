@@ -33,8 +33,10 @@ const LEN = 16;
 // intermediate ones.
 const FOLD_MS = 170;
 const UNFOLD_MS = 230;
-const STAGGER_MS = 35;
-const ROW_STAGGER_MS = 120;
+// Wider stagger than the original design: fewer cells fold at the same moment,
+// which keeps the per-frame work (and so the hitches) down on weak tablets.
+const STAGGER_MS = 55;
+const ROW_STAGGER_MS = 180;
 const FOLD_EASE = "cubic-bezier(.55,0,1,.45)";
 const UNFOLD_EASE = "cubic-bezier(.34,1.56,.64,1)";
 // The dimming + cast shadow that sell the fold as a leaf turning edge-on to the
@@ -61,9 +63,9 @@ const CHARSET = " ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜß0123456789.,!?·-'\"/&()+:;"
 // the rendered characters are evenly sampled along the true forward path, so
 // it still reads as "spinning through the alphabet" rather than skipping.
 const MAX_FLUTTER = 6;
-// Lite mode (see probePerformance): if the device can't keep up, cells go
-// through only a couple of intermediate characters.
-const MAX_FLUTTER_LITE = 2;
+// Quality levels (see probePerformance): 0 = full, 1 = fewer intermediate
+// characters, 2 = every cell flips once straight to its target, no shading.
+const LEVEL_MAX_FLUTTER = [MAX_FLUTTER, 3, 0];
 const FLUTTER_FOLD_MS = 45;
 const FLUTTER_UNFOLD_MS = 45;
 const FLUTTER_EASE = "linear";
@@ -195,7 +197,7 @@ function patchCell(r, i, patch) {
   const c = board.cellsEls[r]?.[i];
   if (!c) return;
   if (patch.flapScale !== undefined) c.flapEl.style.transform = `scaleY(${patch.flapScale})`;
-  if (patch.shade !== undefined) {
+  if (patch.shade !== undefined && board.level < 2) {
     c.shadeEl.style.opacity = patch.shade * SHADE_OPACITY;
     c.castEl.style.opacity = patch.shade;
   }
@@ -203,13 +205,18 @@ function patchCell(r, i, patch) {
     // One duration/easing drives the fold and its shading together.
     const tr = (prop) => (patch.ms === 0 ? "none" : `${prop} ${patch.ms}ms ${patch.ease}`);
     c.flapEl.style.transition = tr("transform");
-    c.shadeEl.style.transition = tr("opacity");
-    c.castEl.style.transition = tr("opacity");
+    if (board.level < 2) {
+      c.shadeEl.style.transition = tr("opacity");
+      c.castEl.style.transition = tr("opacity");
+    }
   }
   if (patch.char !== undefined) {
     c.char = patch.char;
     c.topGlyph.textContent = patch.char;
-    c.bottomGlyph.textContent = patch.char;
+    // The lower half only needs the new character when the cell lands; during the
+    // quick intermediate flips it is left alone — one text repaint less per step,
+    // the biggest single cost of the animation on a weak GPU.
+    if (!patch.skipBottom) c.bottomGlyph.textContent = patch.char;
   }
   if (patch.flapChar !== undefined) c.flapGlyph.textContent = patch.flapChar;
 }
@@ -231,7 +238,7 @@ function scheduleFlip(r, i, steps, stepIdx, delay) {
   after(delay, () => {
     patchCell(r, i, { flapScale: 0, shade: 1, ms: foldMs, ease: foldEase });
     after(foldMs, () => {
-      patchCell(r, i, { char: ch, flapChar: ch, flapScale: 0, shade: 1, ms: 0 });
+      patchCell(r, i, { char: ch, flapChar: ch, skipBottom: !isLast, flapScale: 0, shade: 1, ms: 0 });
       after(16, () => {
         patchCell(r, i, { flapScale: 1, shade: 0, ms: unfoldMs, ease: unfoldEase });
         after(unfoldMs, () => scheduleFlip(r, i, steps, stepIdx + 1, 0));
@@ -242,10 +249,10 @@ function scheduleFlip(r, i, steps, stepIdx, delay) {
 
 // Watches the frame rate while a page change plays. If the device is clearly
 // struggling (a typical mid-range tablet GPU can be), the next page changes
-// use lite mode — far fewer intermediate flips — and stay in it. Frames are
+// step down a quality level (fewer intermediate flips, finally none) and stay there. Frames are
 // only counted while the board is actually animating.
 function probePerformance() {
-  if (!board || board.lite || board.probing) return;
+  if (!board || board.level >= 2 || board.probing) return;
   board.probing = true;
   const dts = [];
   let last = performance.now();
@@ -253,12 +260,16 @@ function probePerformance() {
   const tick = (t) => {
     dts.push(t - last);
     last = t;
-    if (board && t - start < 1800) return requestAnimationFrame(tick);
+    if (board && t - start < 2400) return requestAnimationFrame(tick);
     if (board) {
       board.probing = false;
+      if (dts.length < 8) return; // page was hidden / not rendering — no verdict
+      // Hitches matter more than the average: count frames that took > 45 ms
+      // (< 22 fps) and look at the 90th-percentile frame time.
       const sorted = [...dts].sort((a, b) => a - b);
-      const p75 = sorted[Math.floor(sorted.length * 0.75)] || 0;
-      if (p75 > 38) board.lite = true; // 75% of frames slower than ~26 fps
+      const p90 = sorted[Math.floor(sorted.length * 0.9)];
+      const jank = dts.filter((d) => d > 45).length / dts.length;
+      if (jank > 0.1 || p90 > 50) board.level += 1; // step down one quality level, never back up
     }
   };
   requestAnimationFrame(tick);
@@ -272,7 +283,7 @@ function probePerformance() {
 function advancePage() {
   if (!board) return;
   probePerformance();
-  const maxFlutter = board.lite ? MAX_FLUTTER_LITE : MAX_FLUTTER;
+  const maxFlutter = LEVEL_MAX_FLUTTER[board.level];
   board.pageIdx = (board.pageIdx + 1) % board.pages.length;
   const target = board.pages[board.pageIdx];
   target.forEach((rowStr, r) => {
@@ -337,7 +348,7 @@ export function mountFallblattBoard(root, { room, lang }) {
     });
   });
 
-  board = { room, pages, pageIdx: 0, cellsEls, timer: null, timeouts: [] };
+  board = { room, pages, pageIdx: 0, cellsEls, timer: null, timeouts: [], level: 0, probing: false };
 
   // The board can be wider than a phone-width viewport — centre the scroll
   // position explicitly rather than relying on the flex container alone.
